@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="i18n-title" content="tk.title">
+<title>AquaPulse – Nhiệm vụ cộng đồng</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --ground: #F1F5F4; --surface: #FFFFFF; --sunken: #E7EDEB; --ink: #13201E; --muted: #5A6B67;
+    --line: #D4DEDB; --accent: #0E7C86; --accent-ink: #FFFFFF; --alert: #B4461F; --alert-soft: #FBE9E1;
+    --ok: #1F7A4D; --ok-soft: #E2F3EA;
+    --green: #0ca30c; --yellow: #fab219; --orange: #ec835a; --red: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0C1514; --surface: #13201E; --sunken: #0F1A19; --ink: #E3ECEA; --muted: #93A6A2;
+      --line: #25403C; --accent: #4FC1C8; --accent-ink: #062224; --alert: #F08A62; --alert-soft: #3A1E14;
+      --ok: #6BD39C; --ok-soft: #12301F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0C1514; --surface: #13201E; --sunken: #0F1A19; --ink: #E3ECEA; --muted: #93A6A2;
+    --line: #25403C; --accent: #4FC1C8; --accent-ink: #062224; --alert: #F08A62; --alert-soft: #3A1E14;
+    --ok: #6BD39C; --ok-soft: #12301F;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  /* Grid children may shrink below their content (map attribution, long lines) on phones. */
+  .wrap > *, .layout > *, .hero > *, .charts > * { min-width: 0; }
+  body { margin: 0; background: var(--ground); color: var(--ink);
+         font: 15px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding: 0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 16px; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 8px 16px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { margin: 2px 0 0; font-size: clamp(22px, 3.2vw, 30px); line-height: 1.2; }
+  h2 { margin: 0; font-size: 17px; }
+  section { background: var(--surface); border: 3px solid var(--line); border-radius: 0; padding: 14px 16px; display: grid; gap: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 6px; background: var(--ground); font-size: 13.5px; }
+  .card b { font-size: 15px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  button, .btn { font: inherit; font-weight: 600; font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);
+                 background: var(--surface); color: var(--ink); padding: 7px 12px; cursor: pointer; position: relative;
+                 display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  button:focus-visible, .btn:focus-within, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  input[type=text], input[type=password], input[type=number], select, textarea {
+    font: inherit; font-size: 13.5px; color: var(--ink); background: var(--ground); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; }
+  textarea { width: 100%; min-height: 48px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; background: var(--sunken); }
+  .pill i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .error { background: var(--alert-soft); color: var(--alert); border-radius: 8px; padding: 10px 12px; }
+  .note { background: var(--ok-soft); color: var(--ok); border-radius: 8px; padding: 10px 12px; }
+  .photo { max-width: 100%; max-height: 220px; border-radius: 8px; display: block; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px 12px; }
+  .form-grid label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/demo-mode.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/evidence.js" defer></script>
+</head>
+<body>
+<header class="site-bar">
+  <a class="site-brand" href="/">AquaPulse</a>
+  <nav data-i18n-aria="nav.pages" aria-label="Trang">
+    <a href="/" data-i18n="nav.home">Trang chủ</a>
+    <a href="/report" data-i18n="nav.report">Gửi quan sát</a>
+    <a href="/tasks-board" aria-current="page" data-i18n="nav.tasks">Nhiệm vụ cộng đồng</a>
+    <a href="/dashboard" data-i18n="nav.dashboard">Bảng điều khiển</a>
+  </nav>
+</header>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">AquaPulse</div>
+      <h1 data-i18n="tk.h1">Nhiệm vụ cộng đồng và xác minh</h1>
+    </div>
+  </header>
+
+  <div id="error" class="error" role="alert" hidden></div>
+  <div id="note" class="note" role="status" hidden></div>
+
+  <section aria-labelledby="missions-title">
+    <h2 id="missions-title" data-i18n="tk.missions">Nhiệm vụ đang mở</h2>
+    <p class="muted" style="margin:0" data-i18n="tk.missionnote">Hoàn thành nhiệm vụ bằng cách nhận các điểm cần
+      xác minh trong khu vực, kiểm tra tại chỗ và gửi ảnh sau xử lý. Điểm thưởng cho việc đã xác minh, không cho số
+      lượng ảnh.</p>
+    <div class="cards" id="missions"><span class="muted" data-i18n="word.loading">Đang tải…</span></div>
+  </section>
+
+  <section aria-labelledby="login-title">
+    <h2 id="login-title" data-i18n="tk.account">Tài khoản xác minh</h2>
+    <div class="row" id="login-row">
+      <label><span data-i18n="tk.code">Mã đăng nhập</span> <input type="password" id="token" autocomplete="current-password" size="24"></label>
+      <button type="button" class="btn-primary" id="login" data-i18n="tk.login">Đăng nhập</button>
+      <span class="muted" data-i18n="tk.codenote">Mã do điều phối viên cấp cho tình nguyện viên hoặc chuyên gia.</span>
+    </div>
+    <div class="row" id="who" hidden></div>
+  </section>
+
+  <section aria-labelledby="queue-title" id="queue-section" hidden>
+    <h2 id="queue-title" data-i18n="tk.queue">Điểm cần xác minh</h2>
+    <div class="cards" id="queue"></div>
+  </section>
+
+  <section aria-labelledby="alerts-title" id="alerts-section" hidden>
+    <h2 id="alerts-title" data-i18n="tk.alerts">Cảnh báo (chuyên gia)</h2>
+    <div class="cards" id="alerts"></div>
+  </section>
+
+  <section aria-labelledby="create-title" id="create-section" hidden>
+    <h2 id="create-title" data-i18n="tk.create">Tạo nhiệm vụ cộng đồng (chuyên gia)</h2>
+    <div class="form-grid">
+      <label><span data-i18n="tk.f.title">Tên nhiệm vụ</span> <input type="text" id="m-title" data-i18n-value="tk.f.titledefault" value="Kiểm tra 3 điểm nước đọng sau mưa"></label>
+      <label><span data-i18n="tk.f.lat">Vĩ độ</span> <input type="number" id="m-lat" step="0.0001"></label>
+      <label><span data-i18n="tk.f.lon">Kinh độ</span> <input type="number" id="m-lon" step="0.0001"></label>
+      <label><span data-i18n="tk.f.radius">Bán kính (m)</span> <input type="number" id="m-radius" value="500" min="50" max="5000"></label>
+      <label><span data-i18n="tk.f.target">Số điểm cần kiểm tra</span> <input type="number" id="m-target" value="3" min="1" max="50"></label>
+      <label><span data-i18n="tk.f.hours">Thời hạn (giờ)</span> <input type="number" id="m-hours" value="24" min="1" max="336"></label>
+      <label><span data-i18n="tk.f.points">Điểm thưởng</span> <input type="number" id="m-points" value="100" min="0" max="500"></label>
+      <label><span data-i18n="tk.f.kind">Loại</span> <select id="m-category">
+        <option value="vector" data-i18n="cat.vector">Nước đọng, muỗi</option>
+        <option value="sanitation" data-i18n="cat.sanitation">Ruồi, vệ sinh</option>
+        <option value="water_quality" data-i18n="cat.water_quality">Nước bất thường</option></select></label>
+    </div>
+    <label class="muted"><span data-i18n="tk.f.desc">Mô tả</span> <textarea id="m-desc" data-i18n="tk.f.descdefault">Sau mưa, kiểm tra các vật chứa có đọng nước trong khu vực, đổ nước hoặc úp ngược vật chứa, chụp ảnh sau xử lý.</textarea></label>
+    <input type="hidden" id="m-alert">
+    <div class="row"><button type="button" class="btn-primary" id="m-create" data-i18n="tk.f.make">Tạo nhiệm vụ</button>
+      <span class="muted" id="m-from"></span></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const t2 = window.t;  // `t` is a task inside the card builders below
+  const LEVEL_TEXT = { green: t("level.green"), yellow: t("level.yellow"), orange: t("level.orange"),
+                       red: t("level.red") };
+  const TASK_STATUS = { open: t("tk.s.open"), claimed: t("tk.s.claimed"), escalated: t("tk.s.escalated") };
+  const MISSION_STATUS = { open: t("status.open"), completed: t("tk.m.done"), expired: t("tk.m.expired") };
+  const LOCALE = window.AquaLang.code === "en" ? "en-GB" : "vi-VN";
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const state = { token: null, reviewer: null };
+
+  function el(tag, props = {}, ...children) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+
+  function flash(message, isError) {
+    $("error").hidden = !isError;
+    $("note").hidden = isError;
+    (isError ? $("error") : $("note")).textContent = message;
+  }
+
+  async function api(url, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (state.token) headers.Authorization = `Bearer ${state.token}`;
+    const response = await fetch(url, { ...options, headers });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const d = body.detail;
+      throw new Error(typeof d === "string" ? d : d?.message || t("word.servererror", { status: response.status }));
+    }
+    return body;
+  }
+
+  const post = (url, data) => api(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                         body: JSON.stringify(data || {}) });
+
+  function levelPill(level) {
+    return el("span", { className: "pill" }, el("i", { style: `background:${cssVar(`--${level}`)}` }),
+              `${t("seg.level")} ${(LEVEL_TEXT[level] || level).toLowerCase()}`);
+  }
+
+  async function act(fn, done) {
+    try { await fn(); if (done) flash(done, false); await refresh(); } catch (error) { flash(error.message, true); }
+  }
+
+  // --- Missions (public) --------------------------------------------------------------
+  async function loadMissions() {
+    const { tasks } = await api(`/tasks?include_demo=${window.AquaDemo.on}`);
+    const open = tasks.filter((t) => t.status === "open").concat(tasks.filter((t) => t.status !== "open").slice(0, 3));
+    $("missions").replaceChildren(...(open.length ? open.map((task) => {
+      const due = new Date(task.deadline);
+      const card = el("div", { className: "card" },
+        el("b", { textContent: task.title }),
+        el("span", { textContent: task.description }),
+        el("span", { className: "muted", textContent:
+          `${MISSION_STATUS[task.status]} · `
+          + t("tk.missionline", { n: task.target_count, m: Math.round(task.radius_m),
+                                  due: due.toLocaleString(LOCALE), points: task.reward_points }) }));
+      if (task.status === "open" && state.reviewer) {
+        const button = el("button", { type: "button", textContent: t("tk.report.done") });
+        button.addEventListener("click", () => act(async () => {
+          const r = await post(`/tasks/${task.id}/complete`);
+          flash(t("tk.done", { n: r.sites_done, points: r.points }), false);
+        }));
+        card.append(el("div", { className: "row" }, button));
+      }
+      return card;
+    }) : [el("span", { className: "muted", textContent: t("tk.nomissions") })]));
+  }
+
+  // --- Verification queue (volunteer / expert) ----------------------------------------
+  async function showPhoto(observationId, holder) {
+    const response = await fetch(`/observations/${observationId}/photo`, { headers: { Authorization: `Bearer ${state.token}` } });
+    if (!response.ok) {
+      holder.replaceChildren(el("span", { className: "muted", textContent: t("tk.nophoto") }));
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    holder.replaceChildren(el("img", { className: "photo", src: url, alt: t("tk.photoalt") }));
+  }
+
+  function queueCard(t) {
+    const me = state.reviewer;
+    const mine = t.assignee_id === me.id;
+    const card = el("div", { className: "card" },
+      el("div", { className: "row" }, levelPill(t.level), el("span", { className: "pill", textContent: TASK_STATUS[t.status] || t.status }),
+         t.expert_required ? el("span", { className: "pill", textContent: t2("tk.needexpert") }) : ""),
+      el("span", { className: "muted", textContent:
+        `${t2("tk.at")} ${t.latitude.toFixed(4)}, ${t.longitude.toFixed(4)} · `
+        + new Date(t.observed_at).toLocaleString(LOCALE) }),
+      el("span", { textContent: (t.reasons || []).join("; ") }));
+    if (t.volunteer_verdict) {
+      card.append(el("span", { className: "muted",
+        textContent: `${t2("tk.volunteer")}: ${t.volunteer_verdict}. ${t.volunteer_note || ""}` }));
+    }
+    const photo = el("div");
+    const see = el("button", { type: "button", textContent: t2("tk.seephoto") });
+    see.addEventListener("click", () => showPhoto(t.observation_id, photo));
+    const actions = el("div", { className: "row" }, see);
+    card.append(actions, photo);
+
+    if (t.status === "open") {
+      const claim = el("button", { type: "button", className: "btn-primary", textContent: t2("tk.claim") });
+      claim.addEventListener("click", () => act(() => post(`/verification/tasks/${t.id}/claim`), t2("tk.claimed")));
+      actions.append(claim);
+    }
+    if (mine || me.role === "expert") {
+      const verdict = el("select", {},
+        new Option(t2("tk.v.yes"), "confirmed"), new Option(t2("tk.v.no"), "not_confirmed"));
+      if (me.role !== "expert") verdict.append(new Option(t2("tk.v.unclear"), "unclear"));
+      const note = el("textarea", { placeholder: t2("tk.sitenote"), maxLength: 2000 });
+      const send = el("button", { type: "button", className: "btn-primary",
+                                  textContent: t2(mine && t.status === "claimed" ? "tk.send" : "tk.final") });
+      send.addEventListener("click", () => act(() => {
+        const path = mine && t.status === "claimed" ? "submit" : "resolve";
+        return post(`/verification/tasks/${t.id}/${path}`, { verdict: verdict.value, note: note.value });
+      }, t2("tk.saved")));
+      const upload = (kind) => {
+        const label = el("label", { className: "btn",
+                                    textContent: t2(kind === "after" ? "tk.photoafter" : "tk.photobefore") });
+        const input = el("input", { type: "file", accept: "image/*" });
+        input.setAttribute("capture", "environment");
+        input.addEventListener("change", () => {
+          const file = input.files?.[0];
+          if (!file) return;
+          const form = new FormData();
+          form.append("image", file);
+          form.append("kind", kind);
+          // What the verifier saw on site; the photo is scored with it, not with a fixed "no".
+          if (siteWater.value !== "unknown") form.append("answers", JSON.stringify({ water_stagnant: siteWater.value }));
+          act(async () => {
+            const r = await api(`/verification/tasks/${t.id}/photos`, { method: "POST", body: form });
+            const before = r.before_score === null ? "–" : r.before_score.toFixed(2);
+            const after = r.group_score === null ? "–" : r.group_score.toFixed(2);
+            flash(t2(kind === "after" ? "tk.savedafter" : "tk.savedbefore", { before, after }), false);
+          });
+        });
+        label.append(input);
+        return label;
+      };
+      const siteWater = el("select", { "aria-label": t2("tk.w.label") },
+        new Option(t2("tk.w.unknown"), "unknown"), new Option(t2("tk.w.no"), "no"),
+        new Option(t2("tk.w.yes"), "yes"));
+      if (t.status !== "escalated" || me.role === "expert") {
+        card.append(verdict, note, el("div", { className: "row" }, send),
+                    el("div", { className: "row" }, siteWater, upload("before"), upload("after")));
+      }
+    }
+    return card;
+  }
+
+  async function loadQueue() {
+    const { reviewer, tasks } = await api("/verification/tasks");
+    state.reviewer = reviewer;
+    $("who").replaceChildren(el("span", { textContent:
+        t("tk.signedin", { id: reviewer.id, role: t(reviewer.role === "expert" ? "tk.expert" : "tk.volunteerrole") }) }),
+      Object.assign(el("button", { type: "button", textContent: t("tk.logout") }), { onclick: logout }));
+    $("who").hidden = false;
+    $("login-row").hidden = true;
+    $("queue-section").hidden = false;
+    $("queue").replaceChildren(...(tasks.length ? tasks.map(queueCard)
+      : [el("span", { className: "muted", textContent: t("tk.noqueue") })]));
+    const expert = reviewer.role === "expert";
+    $("alerts-section").hidden = !expert;
+    $("create-section").hidden = !expert;
+    if (expert) await loadAlerts();
+  }
+
+  async function loadAlerts() {
+    const { alerts } = await api(`/alerts?include_demo=${window.AquaDemo.on}`);
+    const active = alerts.filter((a) => a.status === "open" || a.status === "verified");
+    $("alerts").replaceChildren(...(active.length ? active.map((a) => {
+      const note = el("textarea", { placeholder: t("tk.note"), maxLength: 2000 });
+      const buttons = [["verified", t("tk.a.verify")], ["resolved", t("tk.a.resolve")],
+                       ["dismissed", t("tk.a.dismiss")]]
+        .filter(([v]) => !(v === "verified" && a.status === "verified"))
+        .map(([verdict, label]) => {
+          const b = el("button", { type: "button", textContent: label });
+          b.addEventListener("click", () => act(
+            () => post(`/alerts/${a.id}/verify`, { verdict, note: note.value }), t("tk.a.updated")));
+          return b;
+        });
+      const mission = el("button", { type: "button", className: "btn-primary", textContent: t("tk.a.mission") });
+      mission.addEventListener("click", () => {
+        $("m-lat").value = a.latitude; $("m-lon").value = a.longitude; $("m-alert").value = a.id;
+        $("m-category").value = a.category;
+        $("m-from").textContent = t("tk.a.linked", { label: a.label });
+        $("create-section").scrollIntoView({ behavior: "smooth" });
+      });
+      return el("div", { className: "card" },
+        el("div", { className: "row" }, levelPill(a.level),
+           el("span", { className: "pill", textContent: t(a.status === "verified" ? "status.verified" : "status.open") })),
+        el("b", { textContent: a.label }),
+        window.renderEvidence(a),
+        note, el("div", { className: "row" }, ...buttons, mission));
+    }) : [el("span", { className: "muted", textContent: t("pp.noalerts") })]));
+  }
+
+  $("m-create").addEventListener("click", () => act(() => post("/tasks", {
+    title: $("m-title").value, description: $("m-desc").value, category: $("m-category").value,
+    latitude: Number($("m-lat").value), longitude: Number($("m-lon").value), radius_m: Number($("m-radius").value),
+    target_count: Number($("m-target").value), reward_points: Number($("m-points").value),
+    hours: Number($("m-hours").value), alert_id: $("m-alert").value || null,
+  }), t("tk.f.made")));
+
+  function logout() {
+    state.token = null; state.reviewer = null;
+    try { sessionStorage.removeItem("aquapulse.token"); } catch {}
+    ["queue-section", "alerts-section", "create-section", "who"].forEach((id) => { $(id).hidden = true; });
+    $("login-row").hidden = false;
+    loadMissions();
+  }
+
+  async function refresh() {
+    await loadMissions();
+    if (state.token) await loadQueue();
+  }
+
+  $("login").addEventListener("click", async () => {
+    state.token = $("token").value.trim();
+    try {
+      await loadQueue();
+      try { sessionStorage.setItem("aquapulse.token", state.token); } catch {}
+      $("token").value = "";
+      await loadMissions();
+      flash("", false); $("note").hidden = true;
+    } catch (error) { state.token = null; flash(error.message, true); }
+  });
+
+  try { state.token = sessionStorage.getItem("aquapulse.token"); } catch {}
+  refresh().catch((error) => { if (state.token) logout(); flash(error.message, true); });
+})();
+</script>
+</body>
+</html>

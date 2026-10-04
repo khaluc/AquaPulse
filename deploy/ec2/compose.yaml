@@ -1,0 +1,51 @@
+services:
+  web:
+    build:
+      context: ../..
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://aquapulse:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/aquapulse
+      PORT: "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - photos:/data/photos
+
+  db:
+    image: postgis/postgis:18-3.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aquapulse
+      POSTGRES_USER: aquapulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquapulse -d aquapulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  photos:
+  database:
+  caddy_data:
+  caddy_config:

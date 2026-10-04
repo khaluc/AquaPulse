@@ -1,0 +1,18 @@
+# Only what the Dockerfile copies is needed; keep secrets and bulk data out of the context.
+.env
+.env.*
+!.env.example
+.git
+**/__pycache__
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+data/
+backend/storage/
+backend/tests/
+ml/.venv/
+ml/.ultralytics/
+ml/runs/**/*.pt
+ml/runs/**/*.png
+ml/runs/**/*.jpg
+ml/runs/**/*.csv

@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="i18n-title" content="home.title">
+<title>AquaPulse – Sức khỏe dòng sông</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root { --green: #0ca30c; --yellow-level: #fab219; --orange: #ec835a; --red: #d03b3b; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font-size: 15px; line-height: 1.5; }
+  .muted { color: #5c5b57; font-size: 12.5px; }
+
+  /* Hero: statement on the left, the live map on the right. */
+  .hero { display: grid; grid-template-columns: 1fr 1fr; min-height: min(calc(100vh - 60px), 980px); border-bottom: 3px solid #1a1a1a; }
+  .hero > * { min-width: 0; }
+  .hero-text { padding: 56px 48px 40px; display: flex; flex-direction: column; justify-content: center; gap: 22px;
+               position: relative; isolation: isolate; }
+  /* What the work is for: a stream that is still alive. The scrim keeps the headline at full
+     contrast on the left and lets the picture come through on the right. */
+  .hero-text::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background-image:
+      linear-gradient(100deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.93) 45%,
+                              rgba(255,255,255,.72) 72%, rgba(255,255,255,.48) 100%),
+      url("/static/img/river-hero.jpg");
+    background-size: cover; background-position: 38% center;
+  }
+  .hero-text > * { position: relative; }
+  .hero h1 { margin: 0; font-size: clamp(30px, 3.6vw, 54px); text-wrap: balance; }
+  .hero p.lead { margin: 0; max-width: 34rem; color: #1a1a1a; font-size: 16px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .actions .btn { padding: 12px 22px; font-size: 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 3px solid #1a1a1a; max-width: 600px;
+           background: #fff; }
+  .stats > div { padding: 14px 10px; text-align: center; border-right: 3px solid #1a1a1a; min-width: 0; }
+  .stats > div:last-child { border-right: 0; }
+  .stats b { display: block; font: 700 40px/1.05 "Oswald", sans-serif; letter-spacing: -0.02em; }
+  .stats span { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  .stats small { display: block; font-size: 11.5px; color: #5c5b57; margin-top: 4px; }
+  .hero-map { position: relative; border-left: 3px solid #1a1a1a; }
+  .hero-map #map { position: absolute; inset: 0; border: 0 !important; }
+  .map-foot { position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 500; display: flex;
+              flex-wrap: wrap; gap: 10px; align-items: end; justify-content: space-between; pointer-events: none; }
+  .map-foot > * { pointer-events: auto; }
+  .legend { background: #fff; border: 3px solid #1a1a1a; padding: 8px 12px; display: flex; flex-wrap: wrap;
+            gap: 4px 14px; font-size: 12.5px; }
+  .legend i, .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px;
+                    vertical-align: -1px; border: 1.5px solid #1a1a1a; }
+  .legend label { display: inline-flex; gap: 6px; align-items: center; }
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; min-height: 0; }
+    .hero-text { padding: 32px 16px; }
+    /* Narrow screens: a lighter file, and a flatter scrim because the text spans the whole width. */
+    .hero-text::before {
+      background-image:
+        linear-gradient(rgba(255,255,255,.95), rgba(255,255,255,.88)),
+        url("/static/img/river-hero-small.jpg");
+      background-position: center;
+    }
+    .hero-map { border-left: 0; border-top: 3px solid #1a1a1a; height: 460px; }
+    .map-foot { left: 12px; right: 12px; bottom: 12px; }
+    .stats b { font-size: 30px; }
+  }
+
+  /* Sections below the hero. */
+  .section { border-bottom: 3px solid #1a1a1a; padding: 64px 48px; }
+  .section-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .section-head h2 { margin: 4px 0 0; font-size: clamp(34px, 4.6vw, 60px); line-height: 1.1; }
+  .count { font: 600 14px "Oswald", sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+  @media (max-width: 860px) { .section { padding: 40px 16px; } }
+
+  /* How it works: three ruled columns with huge faded numbers. */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); border: 3px solid #1a1a1a; }
+  .step { padding: 28px 24px; border-right: 3px solid #1a1a1a; display: grid; gap: 12px; align-content: start; min-width: 0; }
+  .step:last-child { border-right: 0; }
+  .step .num { font: 700 88px/0.9 "Oswald", sans-serif; color: rgba(26,26,26,.1); }
+  .step h3 { margin: 0; font-size: 34px; letter-spacing: -0.02em; }
+  .step p { margin: 0; color: rgba(26,26,26,.72); font-size: 14px; }
+  .step ol { list-style: none; margin: 4px 0 0; padding: 0; border-top: 2px solid #1a1a1a; }
+  .step li { display: flex; gap: 12px; padding: 9px 0; border-bottom: 2px solid #1a1a1a; font-size: 13px;
+             text-transform: uppercase; letter-spacing: .03em; font-weight: 500; }
+  .step li b { color: #FF0004; font: 700 12px "Oswald", sans-serif; min-width: 2.4em; }
+  @media (max-width: 860px) {
+    .steps { grid-template-columns: 1fr; }
+    .step { border-right: 0; border-bottom: 3px solid #1a1a1a; }
+    .step:last-child { border-bottom: 0; }
+    .step .num { font-size: 64px; }
+  }
+
+  /* Alerts as a ruled register, like a roster. */
+  .register { border: 3px solid #1a1a1a; }
+  .row { display: grid; grid-template-columns: 1.4fr 1.2fr 1fr 0.9fr; gap: 12px; align-items: center;
+         padding: 14px 18px; border-bottom: 3px solid #1a1a1a; cursor: pointer; }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: #F9FF00; }
+  .row .name { font: 700 19px "Oswald", sans-serif; text-transform: uppercase; letter-spacing: -0.01em; }
+  .row .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; border: 1.5px solid #1a1a1a; padding: 1px 7px; background: #fff; }
+  @media (max-width: 860px) { .row { grid-template-columns: 1fr 1fr; } }
+
+  .two { display: grid; grid-template-columns: 1.3fr 1fr; gap: 0; border: 3px solid #1a1a1a; }
+  .two > div { padding: 24px; min-width: 0; }
+  .two > div + div { border-left: 3px solid #1a1a1a; background: #fafafa; }
+  .two h3 { margin: 0 0 12px; font-size: 22px; }
+  .notice { border-left: 6px solid #F9FF00; padding: 6px 0 6px 12px; margin-bottom: 10px; font-size: 14px; display: grid; gap: 2px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .badge { font-size: 11px; padding: 2px 8px; color: #5c5b57; }
+  .badge.earned { color: #1a1a1a; }
+  .leaders { margin: 0; padding: 0; list-style: none; border-top: 2px solid #1a1a1a; }
+  .leaders li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 2px solid #1a1a1a;
+                font: 600 15px "Oswald", sans-serif; text-transform: uppercase; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } .two > div + div { border-left: 0; border-top: 3px solid #1a1a1a; } }
+
+  .legend i.oah { width: 11px; height: 11px; border-radius: 0; background: #fff; border: 2px solid #1a1a1a; }
+  #oah-sites { max-height: 420px; overflow-y: auto; }
+  #oah-sites .row { grid-template-columns: 1.4fr 1fr 1fr; padding: 10px 14px; border-bottom: 2px solid #1a1a1a; }
+  .legend i.line { width: 22px; height: 6px; border-radius: 0; background: #1a1a1a; border: 0; }
+  .row .idx { display: flex; flex-wrap: wrap; gap: 6px; }
+  .row .idx span { font-size: 11px; border: 1.5px solid #1a1a1a; padding: 1px 7px; background: #fff;
+                   text-transform: uppercase; letter-spacing: .06em; }
+  .alert-card { padding: 16px 18px; border-bottom: 3px solid #1a1a1a; display: grid; gap: 4px; }
+  .alert-card:last-child { border-bottom: 0; }
+  .alert-card .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font: 700 18px "Oswald", sans-serif;
+                      text-transform: uppercase; }
+  .ask-buttons { display: grid; gap: 8px; }
+  .ask-buttons button { text-align: left; justify-content: flex-start; padding: 10px 12px; font-size: 14px; }
+  .ask-buttons button[aria-pressed="true"] { background: #F9FF00; }
+  .answer h3 { margin: 0 0 8px; font-size: 20px; }
+  .answer p.main { font-size: 16px; margin: 0 0 12px; }
+  .answer dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13.5px; }
+  .answer dt { font: 700 11px/1.9 "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+  .answer dd { margin: 0; }
+  .answer ul { margin: 0; padding-left: 18px; }
+  @media (max-width: 600px) { .answer dl { grid-template-columns: 1fr; } }
+  .error { background: #FF0004; color: #fff; padding: 10px 16px; font-weight: 600; }
+  .leaflet-popup-content { font: 13px/1.5 "Inter", system-ui, sans-serif; }
+  .leaflet-popup-content dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 6px 0 0; }
+  .leaflet-popup-content dt { color: #5c5b57; }
+  .leaflet-popup-content dd { margin: 0; font-weight: 600; }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/demo-mode.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/evidence.js" defer></script>
+</head>
+<body>
+<header class="site-bar">
+  <a class="site-brand" href="/">AquaPulse</a>
+  <nav data-i18n-aria="nav.pages" aria-label="Trang">
+    <a href="/" aria-current="page" data-i18n="nav.home">Trang chủ</a>
+    <a href="/report" data-i18n="nav.report">Gửi quan sát</a>
+    <a href="/tasks-board" data-i18n="nav.tasks">Nhiệm vụ cộng đồng</a>
+    <a href="/dashboard" data-i18n="nav.dashboard">Bảng điều khiển</a>
+  </nav>
+</header>
+
+<div id="error" class="error" role="alert" hidden></div>
+
+<section class="hero" aria-label="Tổng quan">
+  <div class="hero-text">
+    <div><span class="tag" data-i18n="home.tag">Trạm y tế cho sông đô thị</span></div>
+    <h1 data-i18n="home.h1">Chụp một bức ảnh. Biết dòng kênh đang ra sao.</h1>
+    <p class="lead" data-i18n="home.lead">AquaPulse biến một bức ảnh của người dân thành tín hiệu có thể hành động,
+      nhưng luôn cho biết tín hiệu đó chắc chắn đến đâu. AI không tuyên bố nước an toàn hay độc; người thật xác minh
+      trước khi cảnh báo.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/report"><span data-i18n="home.cta.report">Gửi quan sát</span> <span aria-hidden="true">→</span></a>
+      <a class="btn btn-black" href="/tasks-board" data-i18n="home.cta.tasks">Nhiệm vụ cộng đồng</a>
+    </div>
+    <div class="stats">
+      <div><b id="today">–</b><span data-i18n="home.stat.today">Quan sát hôm nay</span><small id="today-sub"></small></div>
+      <div><b id="open-alerts">–</b><span data-i18n="home.stat.alerts">Cảnh báo mở</span><small id="open-sub"></small></div>
+      <div><b id="segments-watch">–</b><span data-i18n="home.stat.segments">Đoạn kênh cần chú ý</span><small id="segments-sub"></small></div>
+    </div>
+  </div>
+  <div class="hero-map">
+    <div id="map" role="region" data-i18n-aria="home.maplabel" aria-label="Bản đồ điểm nguy cơ"></div>
+    <div class="map-foot">
+      <div class="legend">
+        <span><i style="background:var(--green)"></i><b data-i18n="home.legend.low">Thấp</b></span>
+        <span><i style="background:var(--yellow-level)"></i><b data-i18n="home.legend.watch">Chú ý</b></span>
+        <span><i style="background:var(--orange)"></i><b data-i18n="home.legend.verify">Xác minh sớm</b></span>
+        <span><i style="background:var(--red)"></i><b data-i18n="home.legend.priority">Ưu tiên</b></span>
+        <span><i class="line"></i><b data-i18n="home.legend.segment">Đoạn kênh (bấm để xem hộ chiếu)</b></span>
+        <span><i class="oah"></i><b data-i18n="home.legend.oah">Điểm quan trắc OneAquaHealth</b></span>
+      </div>
+      <span class="tag" id="map-tag" data-i18n="home.maptag">Báo cáo 14 ngày</span>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ho-chieu" aria-labelledby="passport-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.passport.eyebrow">Kênh rạch TP.HCM · dữ liệu OpenStreetMap</span><h2 id="passport-title" data-i18n="home.passport.title">Hộ chiếu dòng kênh</h2></div>
+    <div style="display:grid;gap:6px;justify-items:end">
+      <span class="count" id="segment-count"></span>
+      <label class="muted"><span data-i18n="home.passport.pick">Tuyến</span> <select id="waterway-pick"></select></label>
+    </div>
+  </div>
+  <div class="register" id="segments"><div class="row"><span class="muted" data-i18n="word.loading">Đang tải…</span></div></div>
+</section>
+
+<section class="section" id="canh-bao" aria-labelledby="alerts-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.alerts.eyebrow">Cảnh báo có bằng chứng</span><h2 id="alerts-title" data-i18n="home.alerts.title">Cảnh báo</h2></div>
+    <span class="count" id="alert-count"></span>
+  </div>
+  <div class="register" id="alerts"><div class="row"><span class="muted" data-i18n="word.loading">Đang tải…</span></div></div>
+</section>
+
+<section class="section" id="oneaqua" aria-labelledby="oah-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.oah.eyebrow">Dữ liệu của dự án OneAquaHealth</span><h2 id="oah-title" data-i18n="home.oah.title">Mạng quan trắc châu Âu</h2></div>
+    <span class="count" id="oah-count"></span>
+  </div>
+  <p class="muted" style="max-width:64rem;margin:0 0 14px" data-i18n="home.oah.note">AquaPulse đọc API mở của
+    OneAquaHealth (api.enora-oah.eu): các điểm quan trắc của dự án, các điểm do người dân tạo trong Citizen Science
+    App, và chỉ số rủi ro sức khỏe đo tại từng điểm (mầm bệnh, ô nhiễm từ phân, gen kháng kháng sinh). Đây là số liệu
+    phòng thí nghiệm của dự án; AquaPulse chỉ hiển thị, không trộn vào điểm rủi ro tính từ quan sát của người dân.</p>
+  <div class="two">
+    <div>
+      <label class="muted" style="display:grid;gap:4px;margin-bottom:12px"><span data-i18n="home.oah.city">Thành
+        phố thí điểm</span><select id="oah-city"></select></label>
+      <div class="register" id="oah-sites" style="border-width:2px"><div class="row"><span class="muted" data-i18n="word.loading">Đang tải…</span></div></div>
+    </div>
+    <div id="oah-detail"><p class="muted" style="margin:0" data-i18n="home.oah.pick">Chọn một điểm quan trắc để xem số liệu của dự án.</p></div>
+  </div>
+</section>
+
+<section class="section" id="hoi-nhanh" aria-labelledby="ask-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.ask.eyebrow">Eco – Human Health Translator</span><h2 id="ask-title" data-i18n="home.ask.title">Hỏi nhanh</h2></div>
+  </div>
+  <div class="two">
+    <div>
+      <label class="muted" style="display:grid;gap:4px;margin-bottom:12px"><span data-i18n="home.ask.segment">Đoạn
+        kênh</span><select id="ask-segment"></select></label>
+      <div class="ask-buttons" id="ask-buttons"></div>
+    </div>
+    <div id="ask-answer"><p class="muted" style="margin:0" data-i18n="home.ask.hint">Chọn một câu hỏi. Câu trả lời
+      luôn kèm dữ liệu đang dùng, mức chắc chắn và điều hệ thống chưa biết.</p></div>
+  </div>
+</section>
+
+<section class="section" id="quy-trinh" aria-labelledby="steps-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.steps.eyebrow">Cách hoạt động</span><h2 id="steps-title" data-i18n="home.steps.title">Quy trình</h2></div>
+    <span class="count" data-i18n="home.steps.count">60 giây · 3 bước</span>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <span class="num">01</span>
+      <div><span class="tag" data-i18n="home.step1.tag">Ghi nhận</span></div>
+      <h3 data-i18n="home.step1.h">Người dân</h3>
+      <p data-i18n="home.step1.p">Chụp mặt nước, bờ kênh, rác nổi. Trả lời điều nhìn, ngửi được: màu, mùi, bọt, váng dầu, cá.</p>
+      <ol>
+        <li><b>01.1</b><span data-i18n="home.step1.a">Chọn mục tiêu: môi trường, trẻ em, ngập, sinh vật</span></li>
+        <li><b>01.2</b><span data-i18n="home.step1.b">5–7 dấu hiệu, không thuật ngữ khó</span></li>
+        <li><b>01.3</b><span data-i18n="home.step1.c">Gắn vị trí, thời gian</span></li>
+        <li><b>01.4</b><span data-i18n="home.step1.d">Làm mờ khuôn mặt khi lưu ảnh</span></li>
+      </ol>
+    </div>
+    <div class="step">
+      <span class="num">02</span>
+      <div><span class="tag red" data-i18n="home.step2.tag">AI kiểm tra</span></div>
+      <h3 data-i18n="home.step2.h">Có trách nhiệm</h3>
+      <p data-i18n="home.step2.p">AI không nói "nước an toàn" hay "nước độc". Nó kiểm tra quan sát và nói rõ mình chắc đến đâu.</p>
+      <ol>
+        <li><b>02.1</b><span data-i18n="home.step2.a">Ảnh đủ rõ, không trùng lặp</span></li>
+        <li><b>02.2</b><span data-i18n="home.step2.b">So mô tả của người dân với ảnh</span></li>
+        <li><b>02.3</b><span data-i18n="home.step2.c">Độ tin cậy tách riêng mức rủi ro</span></li>
+        <li><b>02.4</b><span data-i18n="home.step2.d">Hỏi lại khi AI không chắc</span></li>
+      </ol>
+    </div>
+    <div class="step">
+      <span class="num">03</span>
+      <div><span class="tag" data-i18n="home.step3.tag">Hành động</span></div>
+      <h3 data-i18n="home.step3.h">Cộng đồng</h3>
+      <p data-i18n="home.step3.p">Quan sát gần nhau gom thành cụm, cảnh báo kèm bằng chứng, tình nguyện viên xác minh tại hiện trường.</p>
+      <ol>
+        <li><b>03.1</b><span data-i18n="home.step3.a">Chưa xác minh: tối đa mức vàng</span></li>
+        <li><b>03.2</b><span data-i18n="home.step3.b">Xác minh tại chỗ: lên cam</span></li>
+        <li><b>03.3</b><span data-i18n="home.step3.c">Mức đỏ chỉ do chuyên gia</span></li>
+        <li><b>03.4</b><span data-i18n="home.step3.d">Hộ chiếu kênh cập nhật theo thời gian</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="community-title">
+  <div class="section-head">
+    <div><span class="eyebrow" data-i18n="home.community.eyebrow">Quanh bạn</span><h2 id="community-title" data-i18n="home.community.title">Cộng đồng</h2></div>
+  </div>
+  <div class="two">
+    <div>
+      <h3 data-i18n="home.notices">Thông báo quanh khu vực bản đồ</h3>
+      <div id="notices" class="muted" data-i18n="word.loading">Đang tải…</div>
+    </div>
+    <div>
+      <h3 data-i18n="home.points">Điểm của bạn</h3>
+      <div id="me" class="muted" data-i18n="word.loading">Đang tải…</div>
+      <h3 style="margin-top:20px" data-i18n="home.leaders">Bảng xếp hạng</h3>
+      <div id="leaders" class="muted" data-i18n="word.loading">Đang tải…</div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer" style="margin:0">
+  <div class="inner">
+    <div>
+      <h3>AquaPulse</h3>
+      <p data-i18n="home.footer.p">Nhịp đập sức khỏe của dòng sông. Sàng lọc dấu hiệu môi trường từ ảnh và câu
+        trả lời của người dân; không chẩn đoán bệnh, không thay xét nghiệm nước. Vị trí công khai làm tròn khoảng
+        100 m, không hiện tên người báo.</p>
+    </div>
+    <div><h4 data-i18n="home.footer.pages">Trang</h4><a href="/report" data-i18n="nav.report">Gửi quan sát</a>
+      <a href="/tasks-board" data-i18n="nav.tasks">Nhiệm vụ cộng đồng</a>
+      <a href="/dashboard" data-i18n="nav.dashboard">Bảng điều khiển</a>
+      <a href="/scope" data-i18n="home.footer.scope">Phạm vi hệ thống</a></div>
+    <div><h4 data-i18n="home.footer.watch">Theo dõi</h4><span data-i18n="home.footer.w1">Sông, kênh: mặt nước, bờ,
+      rác nổi</span><br><span data-i18n="home.footer.w2">Nước đọng, muỗi</span><br>
+      <span data-i18n="home.footer.w3">Ruồi, chuột, xác động vật</span></div>
+    <div><h4 data-i18n="home.footer.data">Dữ liệu</h4><span data-i18n="home.footer.d1">Quan sát của người dân</span>
+      <br><span data-i18n="home.footer.d2">Mưa: Open-Meteo</span><br>
+      <span data-i18n="home.footer.d3">Đường kênh: © OpenStreetMap</span><br>
+      <a href="/fhir/waterways/nhieu-loc-thi-nghe-2" data-i18n="home.footer.fhir">Xuất FHIR</a></div>
+  </div>
+  <div class="legal"><span>AquaPulse · OneAquaHealth</span><span data-i18n="home.footer.legal">Thông tin sàng lọc, không phải kết luận y tế</span></div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LEVEL_TEXT = { green: t("level.green"), yellow: t("level.yellow"), orange: t("level.orange"),
+                       red: t("level.red") };
+  const LEVEL_VAR = { green: "--green", yellow: "--yellow-level", orange: "--orange", red: "--red" };
+  const CATEGORY_TEXT = { vector: t("cat.vector"), sanitation: t("cat.sanitation"),
+                          water_quality: t("cat.water_quality") };
+  const STATUS_TEXT = { open: t("status.open"), verified: t("status.verified"), resolved: t("status.resolved"),
+                        dismissed: t("status.dismissed") };
+  const LOCALE = window.AquaLang.code === "en" ? "en-GB" : "vi-VN";
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const levelColor = (level) => cssVar(LEVEL_VAR[level] || "--green");
+  const fmt = (v, d = 0) => v === null || v === undefined ? "–"
+    : Number(v).toLocaleString(LOCALE, { maximumFractionDigits: d, minimumFractionDigits: d });
+  const when = (iso) => new Date(iso).toLocaleString(LOCALE);
+
+  function el(tag, props = {}, ...children) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+
+  function reporterId() {
+    try { return localStorage.getItem("aquapulse.reporter"); } catch { return null; }
+  }
+
+  async function getJson(url) {
+    const response = await fetch(url);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : t("word.servererror", { status: response.status }));
+    return body;
+  }
+
+  const demo = () => window.AquaDemo.on;  // sample data only with ?demo=1 (demo-mode.js)
+  const map = L.map("map", { scrollWheelZoom: false }).setView([10.78, 106.69], 12);
+  const pointsLayer = L.layerGroup().addTo(map);
+  const alertsLayer = L.layerGroup().addTo(map);
+
+  function popup(p) {
+    const rows = [
+      [t("pop.type"), p.type],
+      [t("pop.time"), when(p.observed_at)],
+      [t("pop.nearby"), `${p.nearby_reports} ${t("pop.window")}`],
+      [t("pop.level"), `${LEVEL_TEXT[p.level]} (${fmt(p.risk, 2)})`],
+      [t("pop.confidence"), fmt(p.confidence, 2)],
+      [t("pop.verification"), p.status_label],
+    ];
+    const dl = el("dl");
+    for (const [k, v] of rows) dl.append(el("dt", { textContent: k }), el("dd", { textContent: v }));
+    const box = el("div", {}, dl);
+    if (p.is_demo) box.append(el("div", { className: "muted", textContent: t("pop.demo") }));
+    return box;
+  }
+
+  async function loadMap(fit) {
+    const data = await getJson(`/map/points?hours=${24 * 14}&include_demo=${demo()}`);
+    pointsLayer.clearLayers();
+    for (const f of data.features) {
+      const [lon, lat] = f.geometry.coordinates;
+      L.circleMarker([lat, lon], {
+        radius: 8, color: "#1a1a1a", weight: 2, fillColor: levelColor(f.properties.level), fillOpacity: 1,
+      }).bindPopup(popup(f.properties)).addTo(pointsLayer);
+    }
+    ownPoints = data.features.map((f) => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+  }
+
+  const LEVEL_WORD = { ...LEVEL_TEXT, none: t("level.none") };
+  const segmentLayer = L.layerGroup().addTo(map);
+  let segments = [];
+  const pct = (v) => v === null || v === undefined ? "–" : fmt(v, 2);
+
+  function segmentPopup(s) {
+    const ix = s.indices;
+    return el("div", {},
+      el("b", { textContent: s.name }),
+      el("div", { textContent: `${t("seg.level")}: ${LEVEL_WORD[s.level]} · ${s.reports_14d} ${t("seg.in14d")}` }),
+      el("div", { textContent: `${t("word.eco")} ${pct(ix.eco)} · ${t("word.risk")} ${pct(ix.risk)} · `
+                               + `${t("word.confidence")} ${pct(ix.confidence)} (${ix.confidence_label})` }),
+      el("div", { textContent: `${t("word.trend")}: ${ix.trend.label}` }),
+      el("a", { href: `/passport?segment=${s.id}`, textContent: t("seg.open") }));
+  }
+
+  async function loadSegments() {
+    ({ segments } = await getJson(`/waterways?include_demo=${demo()}`));
+    segmentLayer.clearLayers();
+    for (const s of segments) {
+      const latlngs = s.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+      const color = s.level === "none" ? "#9a9892" : levelColor(s.level);
+      L.polyline(latlngs, { color: "#1a1a1a", weight: 11, opacity: 1 }).addTo(segmentLayer);
+      L.polyline(latlngs, { color, weight: 6, opacity: 1 }).bindPopup(segmentPopup(s)).addTo(segmentLayer);
+    }
+    pointsLayer.eachLayer((marker) => marker.bringToFront());  // reports stay above the canal line
+    const watch = segments.filter((s) => s.level === "yellow" || s.level === "orange" || s.level === "red");
+    $("segments-watch").textContent = fmt(watch.length);
+    $("segments-sub").textContent = t("home.onsegments", { n: segments.length });
+    const waterways = [...new Set(segments.map((s) => s.waterway))];
+    const picker = $("waterway-pick");
+    if (!picker.options.length) {
+      picker.append(new Option(t("word.all"), ""), ...waterways.map((w) => new Option(w, w)));
+      picker.value = waterways.find((w) => w.includes("Nhiêu Lộc")) || "";
+      picker.addEventListener("change", renderSegments);
+    }
+    $("segment-count").textContent = `${segments.length} ${t("word.segments")} · `
+      + `${waterways.length} ${t("word.waterways")}`;
+    const ask = $("ask-segment");
+    const keep = ask.value;
+    ask.replaceChildren(...segments.map((s) => new Option(`${s.waterway} · ${s.name}`, s.id)));
+    ask.value = keep || (watch[0] || segments[0] || {}).id || "";
+    renderSegments();
+  }
+
+  function renderSegments() {
+    const pick = $("waterway-pick").value;
+    const shown = segments.filter((s) => !pick || s.waterway === pick);
+    $("segments").replaceChildren(...shown.map((s) => {
+      const ix = s.indices;
+      const row = el("div", { className: "row", tabIndex: 0 },
+        el("span", { className: "name" }, el("span", { className: "dot", style: `background:${s.level === "none" ? "#9a9892" : levelColor(s.level)}` }),
+           pick ? s.name : `${s.waterway} · ${s.name}`),
+        el("span", { className: "idx" },
+          el("span", { textContent: `${t("word.eco")} ${pct(ix.eco)}` }),
+          el("span", { textContent: `${t("word.risk")} ${pct(ix.risk)}` }),
+          el("span", { textContent: `${t("word.confidence")} ${ix.confidence_label}` })),
+        el("span", { className: "idx" },
+          el("span", { textContent: ix.trend.label }),
+          el("span", { textContent: `${t("word.human")} ${pct(ix.human_health)}` })),
+        el("span", { className: "muted",
+                     textContent: `${LEVEL_WORD[s.level]} · ${s.reports_14d} ${t("word.observations")}` }));
+      const open = () => { location.href = `/passport?segment=${s.id}`; };
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+      return row;
+    }));
+  }
+
+  // --- OneAquaHealth: the project's own monitoring network ------------------------------
+  const oahLayer = L.layerGroup().addTo(map);
+  // The API sends the risk word in the page's language; both spellings map to the same colour.
+  const RISK_COLOR = { "thấp": "--green", "trung bình": "--yellow-level", "cao": "--red", "chưa có": null,
+                       low: "--green", medium: "--yellow-level", high: "--red", "not available": null };
+  let oahSites = [];
+
+  function oahMarker(f) {
+    const p = f.properties;
+    const [lon, lat] = f.geometry.coordinates;
+    const key = RISK_COLOR[p.health_risk_word];
+    return L.circleMarker([lat, lon], {
+      radius: 6, weight: 2, color: "#1a1a1a", fillColor: key ? cssVar(key) : "#ffffff", fillOpacity: 1,
+    }).bindPopup(() => oahPopup(p));
+  }
+
+  function oahPopup(p) {
+    const box = el("div", {}, el("b", { textContent: p.name }));
+    box.append(el("div", { className: "muted", textContent:
+      t(p.kind === "citizen" ? "oah.kind.citizen" : "oah.kind.research")
+      + (p.city_name ? ` · ${p.city_name}` : "") }));
+    if (p.health_risk !== null && p.health_risk !== undefined) {
+      box.append(el("div", { textContent: `${t("oah.risk")} ${fmt(p.health_risk, 2)} (${p.health_risk_word})`
+        + (p.sampled_on ? `, ${t("oah.sampled")} ${p.sampled_on.split("-").reverse().join("/")}` : "") }));
+    }
+    box.append(el("div", { className: "muted", textContent: t("oah.source") }));
+    return box;
+  }
+
+  async function loadOneAqua() {
+    const { cities } = await getJson("/oneaqua/cities");
+    const select = $("oah-city");
+    if (!select.options.length) {
+      select.append(...cities.map((c) => new Option(
+        `${c.name} · ${c.research_sites} ${t("word.sites")} · ${t("oah.avg")} `
+        + `${c.avg_health_risk === null ? "–" : fmt(c.avg_health_risk, 2)}`, c.id)));
+      select.append(new Option(t("oah.citizenoption"), "citizen"));
+      select.addEventListener("change", () => run(() => showCity(select.value, cities)));
+    }
+    await showCity(select.value || (cities[0] || {}).id, cities);
+  }
+
+  async function showCity(cityId, cities) {
+    const citizen = cityId === "citizen";
+    const params = citizen ? "kind=citizen" : `city=${cityId}`;
+    const data = await getJson(`/oneaqua/sites?${params}`);
+    oahSites = data.features;
+    oahLayer.clearLayers();
+    for (const f of oahSites) oahMarker(f).addTo(oahLayer);
+    $("oah-count").textContent = `${oahSites.length} ${t("word.sites")}`;
+    const city = cities.find((c) => c.id === cityId);
+    if (oahSites.length) {
+      map.fitBounds(oahSites.map((f) => [f.geometry.coordinates[1], f.geometry.coordinates[0]]),
+                    { padding: [40, 40], maxZoom: 13 });
+    } else if (city) {
+      map.setView([city.latitude, city.longitude], 12);
+    }
+    $("oah-sites").replaceChildren(...oahSites.slice(0, 40).map((f) => {
+      const p = f.properties;
+      const key = RISK_COLOR[p.health_risk_word];
+      const row = el("div", { className: "row", tabIndex: 0 },
+        el("span", { className: "name" },
+           el("span", { className: "dot", style: `background:${key ? cssVar(key) : "#fff"}` }), p.name),
+        el("span", { className: "chips" }, el("span", { className: "chip", textContent:
+          p.health_risk === null || p.health_risk === undefined ? t("oah.norisk")
+            : `${t("word.risk")} ${fmt(p.health_risk, 2)} · ${p.health_risk_word}` })),
+        el("span", { className: "muted", textContent: p.kind === "citizen" ? "Citizen Science App" : (p.city_name || "") }));
+      const open = () => {
+        map.setView([f.geometry.coordinates[1], f.geometry.coordinates[0]], 16);
+        document.querySelector(".hero").scrollIntoView({ behavior: "smooth" });
+        run(() => showSite(p.code));
+      };
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+      return row;
+    }));
+    $("oah-detail").replaceChildren(el("p", { className: "muted", style: "margin:0",
+      textContent: t("home.oah.pick") }));
+  }
+
+  async function showSite(code) {
+    const d = await getJson(`/oneaqua/sites/${encodeURIComponent(code)}`);
+    const rain = (d.weather || []).filter((w) => w.mm !== null && w.mm !== undefined);
+    const nitrate = (d.nitrates || [])[0];
+    const box = el("div", { className: "answer" }, el("h3", { textContent: d.site.name }));
+    box.append(el("ul", { style: "margin:0 0 10px;padding-left:18px" },
+      ...d.explanation.map((t) => el("li", { textContent: t }))));
+    const dl = el("dl");
+    const add = (term, text) => dl.append(el("dt", { textContent: term }), el("dd", { textContent: text }));
+    if (d.history.length) {
+      add(t("oah.history"), d.history.map((h) => `${h.sampled_on}: ${fmt(h.health_risk, 2)}`).join(" · "));
+    }
+    if (nitrate) add(t("oah.nitrate"), `${nitrate.statusOfNitrate} (${nitrate.date})`);
+    if (rain.length) {
+      const total = rain.reduce((sum, w) => sum + w.mm, 0);
+      add(t("oah.weather"), t("oah.rainsum", { mm: fmt(total, 1), days: rain.length }));
+    }
+    add(t("word.source"), d.attribution);
+    box.append(dl);
+    $("oah-detail").replaceChildren(box);
+  }
+
+  // --- Translator ---------------------------------------------------------------------
+  const QUESTIONS = ["children", "odor", "after_rain", "biodiversity"].map((k) => [k, t(`ask.q.${k}`)]);
+
+  async function ask(key, button) {
+    document.querySelectorAll("#ask-buttons button").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+    const params = new URLSearchParams({ question: key, include_demo: String(demo()) });
+    if ($("ask-segment").value) params.set("segment_id", $("ask-segment").value);
+    const a = await getJson(`/translator?${params}`);
+    const dl = el("dl");
+    const add = (term, node) => dl.append(el("dt", { textContent: term }), el("dd", {}, node));
+    add(t("ask.data"), el("ul", {}, ...a.data_used.map((line) => el("li", { textContent: line }))));
+    add(t("ask.certainty"), document.createTextNode(a.certainty));
+    add(t("ask.unknown"), el("ul", {}, ...a.unknown.map((line) => el("li", { textContent: line }))));
+    add(t("ask.advice"), document.createTextNode(a.advice));
+    $("ask-answer").replaceChildren(el("div", { className: "answer" },
+      el("h3", { textContent: a.question }), el("p", { className: "main", textContent: a.answer }), dl,
+      el("p", { className: "muted", style: "margin:12px 0 0", textContent: a.disclaimer })));
+  }
+
+  $("ask-buttons").replaceChildren(...QUESTIONS.map(([key, text]) => {
+    const b = el("button", { type: "button", textContent: text });
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => run(() => ask(key, b)));
+    return b;
+  }));
+
+  async function loadAlerts() {
+    const { alerts } = await getJson(`/alerts?include_demo=${demo()}`);
+    alertsLayer.clearLayers();
+    const open = alerts.filter((a) => a.status === "open" || a.status === "verified");
+    for (const a of open) {
+      L.circle([a.latitude, a.longitude], { radius: Math.max(a.spread_m, 120), color: "#1a1a1a",
+        weight: 2, dashArray: "6 4", fillColor: levelColor(a.level), fillOpacity: 0.12 }).addTo(alertsLayer);
+    }
+    $("alert-count").textContent = `${open.length} ${t("status.open").toLowerCase()}`;
+    const shown = open.concat(alerts.filter((a) => !open.includes(a))).slice(0, 6);
+    $("alerts").replaceChildren(...(shown.length ? shown.map((a) => {
+      const card = el("div", { className: "alert-card" },
+        el("div", { className: "head" }, el("span", { className: "dot", style: `background:${levelColor(a.level)}` }),
+           `${t("alert.level")} ${LEVEL_TEXT[a.level].toLowerCase()} · ${CATEGORY_TEXT[a.category] || a.category}`,
+           el("span", { className: "chip", textContent: STATUS_TEXT[a.status] || a.status })),
+        window.renderEvidence(a));
+      card.addEventListener("click", () => {
+        map.setView([a.latitude, a.longitude], 16);
+        document.querySelector(".hero").scrollIntoView({ behavior: "smooth" });
+      });
+      return card;
+    }) : [el("div", { className: "row" }, el("span", { textContent: t("home.noalerts") }))]));
+  }
+
+  async function loadNotices() {
+    const c = map.getCenter();
+    const params = new URLSearchParams({ latitude: c.lat.toFixed(5), longitude: c.lng.toFixed(5), radius_m: "3000",
+                                         hours: String(24 * 14), include_demo: String(demo()) });
+    const me = reporterId();
+    if (me) params.set("reporter_id", me);
+    const { area, personal } = await getJson(`/notifications?${params}`);
+    const checks = area.filter((n) => n.kind === "task_nearby");
+    const items = [...personal.map((n) => ({ ...n, personal: true })),
+                   ...area.filter((n) => n.kind !== "task_nearby")].slice(0, 5);
+    if (checks.length) {
+      const nearest = Math.min(...checks.map((n) => n.distance_m));
+      items.push({ message: t("home.checks", { n: checks.length }),
+                   created_at: checks[0].created_at, distance_m: nearest });
+    }
+    $("notices").replaceChildren(...(items.length ? items.map((n) => el("div", { className: "notice" },
+      el("span", { textContent: n.message }),
+      el("span", { className: "muted", textContent: `${n.personal ? t("home.forme") + " · " : ""}${when(n.created_at)}`
+        + (n.distance_m !== undefined ? ` · ${t("home.away")} ${fmt(n.distance_m)} m` : "") })))
+      : [el("span", { textContent: t("home.nonotices") })]));
+  }
+
+  async function loadMe() {
+    const me = reporterId();
+    if (!me) {
+      $("me").replaceChildren(el("span", { textContent: t("home.firstreport") }));
+      return;
+    }
+    const p = await getJson(`/community/profile/${encodeURIComponent(me)}`);
+    $("me").replaceChildren(
+      el("div", { className: "count" }, `${fmt(p.points)} ${t("word.points")} · ${t("home.anonid")} ${me}`),
+      el("div", { className: "badges" }, ...p.badges.map((b) => el("span", {
+        className: `badge${b.earned ? " earned" : ""}`, title: b.rule, textContent: (b.earned ? "✓ " : "") + b.name }))),
+      el("span", { className: "muted", textContent: t("home.pointsnote") }));
+  }
+
+  async function loadLeaders() {
+    const { leaders } = await getJson(`/community/leaderboard?limit=5&include_demo=${demo()}`);
+    $("leaders").replaceChildren(...(leaders.length ? [el("ol", { className: "leaders" },
+      ...leaders.map((l, i) => el("li", {}, el("span", { textContent: `${String(i + 1).padStart(2, "0")} · ${l.user}` }),
+                                         el("span", { textContent: `${fmt(l.points)} ${t("word.points")}` }))))]
+      : [el("span", { textContent: t("home.noleaders") })]));
+  }
+
+  async function loadSummary() {
+    const m = await getJson(`/dashboard/metrics?days=1&include_demo=${demo()}`);
+    $("today").textContent = fmt(m.observations_today);
+    $("today-sub").textContent = `${fmt(m.verified_observations)} ${t("home.verified")}`;
+    $("open-alerts").textContent = fmt(m.open_alerts);
+    $("open-sub").textContent = `${fmt(m.open_high_alerts)} ${t("home.highlevels")}`;
+  }
+
+  async function run(task) {
+    try { await task(); } catch (error) { $("error").textContent = error.message; $("error").hidden = false; }
+  }
+
+  let ownPoints = [];
+  async function loadAll(fit) {
+    $("error").hidden = true;
+    await Promise.all([run(loadSummary), run(() => loadMap(fit)), run(loadAlerts), run(loadMe), run(loadLeaders),
+                       run(loadSegments), run(loadOneAqua)]);
+    // Frame the canal and every report on it.
+    const canal = segments.flatMap((s) => s.geometry.coordinates.map(([lon, lat]) => [lat, lon]));
+    const frame = ownPoints.concat(canal);
+    if (fit && frame.length) map.fitBounds(frame, { padding: [30, 30], maxZoom: 15 });
+    $("oah-count").title = t("oah.hint");
+    run(loadNotices);
+  }
+
+  fetch("/config").then((r) => r.json()).then((cfg) => {
+    L.tileLayer(cfg.map_tile_url, { maxZoom: 19, subdomains: "abc", attribution: cfg.map_attribution }).addTo(map);
+  });
+  map.on("moveend", () => run(loadNotices));
+  loadAll(true);
+})();
+</script>
+</body>
+</html>

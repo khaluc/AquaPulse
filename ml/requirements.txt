@@ -1,0 +1,5 @@
+# Install CUDA PyTorch first (the PyPI wheel on Windows is CPU-only):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+ultralytics>=8.4,<9
+Pillow>=11
+pytest>=8

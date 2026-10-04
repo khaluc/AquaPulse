@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="i18n-title" content="pp.title">
+<title>AquaPulse – Hộ chiếu dòng kênh</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛂</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root { --green: #0ca30c; --yellow-level: #fab219; --orange: #ec835a; --red: #d03b3b; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font-size: 15px; line-height: 1.5; }
+  .wrap > *, .grid > *, .tiles > * { min-width: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 20px; }
+  .muted { color: #5c5b57; font-size: 12.5px; }
+  .head { display: grid; grid-template-columns: 1fr auto; gap: 12px 24px; align-items: end; border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; }
+  .head h1 { margin: 4px 0 0; font-size: clamp(28px, 4vw, 52px); }
+  .level { font: 700 16px "Oswald", sans-serif; text-transform: uppercase; letter-spacing: .08em; display: inline-flex;
+           align-items: center; gap: 8px; border: 3px solid #1a1a1a; padding: 6px 12px; background: #fff; }
+  .level i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #1a1a1a; display: inline-block; }
+  select { font: inherit; padding: 6px 8px; }
+  .tiles { display: grid; grid-template-columns: repeat(5, 1fr); border: 3px solid #1a1a1a; }
+  .tiles > div { padding: 14px; border-right: 3px solid #1a1a1a; display: grid; gap: 2px; align-content: start; }
+  .tiles > div:last-child { border-right: 0; }
+  .tiles .label { font: 700 11px "Oswald", sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+  .tiles .value { font: 700 36px/1.1 "Oswald", sans-serif; }
+  .tiles .sub { font-size: 12px; color: #5c5b57; }
+  @media (max-width: 900px) { .tiles { grid-template-columns: 1fr 1fr; } .tiles > div { border-bottom: 3px solid #1a1a1a; }
+    .tiles > div:nth-child(2n) { border-right: 0; } }
+  .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .box { border: 3px solid #1a1a1a; padding: 16px 18px; display: grid; gap: 10px; background: #fff; }
+  .box h2 { margin: 0; font-size: 22px; }
+  .say { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
+  .do { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-weight: 600; }
+  #map { height: 320px; border: 3px solid #1a1a1a; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border: 2px solid #1a1a1a; }
+  .facts > div { padding: 10px 12px; border-right: 2px solid #1a1a1a; }
+  .facts > div:last-child { border-right: 0; }
+  .facts b { display: block; font: 700 26px "Oswald", sans-serif; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; border: 2px solid #1a1a1a; padding: 2px 9px; background: #fff; }
+  .alert-card { border: 2px solid #1a1a1a; padding: 12px; }
+  .ask-buttons { display: grid; gap: 8px; }
+  .ask-buttons button { text-align: left; justify-content: flex-start; padding: 8px 12px; font-size: 13.5px; }
+  .ask-buttons button[aria-pressed="true"] { background: #F9FF00; }
+  .answer dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 8px 0 0; font-size: 13.5px; }
+  .answer dt { font: 700 11px/1.9 "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+  .answer dd { margin: 0; } .answer ul { margin: 0; padding-left: 18px; }
+
+  /* Charts: validated two-slot palette (blue, orange), single axis each. */
+  .viz { --chart-surface: #fcfcfb; --grid: #e1e0d9; --baseline: #c3c2b7; --text-muted: #898781;
+         --series-1: #2a78d6; --series-2: #eb6834; position: relative; }
+  .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .viz svg text { fill: var(--text-muted); font: 11px system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .chart-legend { display: flex; gap: 14px; font-size: 12.5px; color: #52514e; }
+  .chart-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+  .tip { position: absolute; pointer-events: none; background: #fcfcfb; border: 1px solid #e1e0d9; padding: 6px 9px;
+         font-size: 12.5px; display: grid; gap: 2px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.12); z-index: 5; }
+  .tip .key { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
+  .error { background: #FF0004; color: #fff; padding: 10px 16px; font-weight: 600; }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/demo-mode.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/evidence.js" defer></script>
+</head>
+<body>
+<header class="site-bar">
+  <a class="site-brand" href="/">AquaPulse</a>
+  <nav data-i18n-aria="nav.pages" aria-label="Trang">
+    <a href="/" data-i18n="nav.home">Trang chủ</a>
+    <a href="/report" data-i18n="nav.report">Gửi quan sát</a>
+    <a href="/tasks-board" data-i18n="nav.tasks">Nhiệm vụ cộng đồng</a>
+    <a href="/dashboard" data-i18n="nav.dashboard">Bảng điều khiển</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div id="error" class="error" role="alert" hidden></div>
+  <div class="head">
+    <div>
+      <span class="eyebrow"><span data-i18n="pp.eyebrow">Hộ chiếu rủi ro</span> · <span id="waterway">Kênh</span></span>
+      <h1 id="title" data-i18n="word.loading">Đang tải…</h1>
+      <div class="muted" id="km"></div>
+    </div>
+    <div style="display:grid;gap:8px;justify-items:end">
+      <span class="level" id="level"><i></i>–</span>
+      <label class="muted"><span data-i18n="pp.other">Đoạn khác</span> <select id="pick"></select></label>
+    </div>
+  </div>
+
+  <section class="tiles" data-i18n-aria="pp.indices" aria-label="Chỉ số" id="tiles"></section>
+
+  <div class="grid">
+    <section class="box" aria-labelledby="say-title">
+      <h2 id="say-title" data-i18n="pp.state">Đoạn kênh đang ra sao</h2>
+      <ul class="say" id="explain"></ul>
+      <h2 style="margin-top:6px" data-i18n="pp.todo">Nên làm gì</h2>
+      <ul class="do" id="actions"></ul>
+      <p class="muted" id="limits" style="margin:0"></p>
+    </section>
+    <div id="map" role="region" data-i18n-aria="pp.maplabel" aria-label="Bản đồ đoạn kênh"></div>
+  </div>
+
+  <div class="grid">
+    <section class="box viz" aria-labelledby="hist-title" id="hist-card">
+      <h2 id="hist-title" data-i18n="pp.history">Lịch sử quan sát, 14 ngày</h2>
+      <div class="chart-legend"><span><i style="background:var(--series-1)"></i>
+        <b data-i18n="pp.reports">Quan sát</b></span>
+        <span><i style="background:var(--series-2)"></i><b data-i18n="pp.anomalies">Bất thường</b></span></div>
+      <div id="hist"></div>
+      <details class="muted"><summary data-i18n="pp.astable">Xem dạng bảng</summary><table><thead><tr><th data-i18n="pp.day">Ngày</th><th data-i18n="pp.reports">Quan sát</th><th data-i18n="pp.anomalies">Bất thường</th></tr></thead><tbody id="hist-table"></tbody></table></details>
+    </section>
+    <section class="box viz" aria-labelledby="rain-title" id="rain-card">
+      <h2 id="rain-title" data-i18n="pp.rain">Mưa đo được (mm/ngày)</h2>
+      <div class="muted" id="rain-source"></div>
+      <div id="rain"></div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="box" aria-labelledby="signs-title">
+      <h2 id="signs-title" data-i18n="pp.signs">Dấu hiệu bất thường (30 ngày)</h2>
+      <div class="chips" id="anomalies"></div>
+      <h2 data-i18n="pp.life">Sinh vật</h2>
+      <p id="life" style="margin:0"></p>
+      <h2 data-i18n="pp.people">Cộng đồng tham gia</h2>
+      <div class="facts" id="people"></div>
+      <h2 data-i18n="pp.human">Tác động tiềm tàng đến người</h2>
+      <p id="human" style="margin:0"></p>
+    </section>
+    <section class="box" aria-labelledby="alert-title">
+      <h2 id="alert-title" data-i18n="home.alerts.eyebrow">Cảnh báo có bằng chứng</h2>
+      <div id="alerts" style="display:grid;gap:10px"></div>
+      <h2 id="press-title" data-i18n="pp.press">Báo chí nói gì về tuyến này</h2>
+      <div id="press" class="muted" data-i18n="word.loading">Đang tải…</div>
+
+      <h2 data-i18n="pp.ask">Hỏi nhanh về đoạn này</h2>
+      <div class="ask-buttons" id="ask"></div>
+      <div id="answer" class="answer"></div>
+      <a class="muted" id="fhir" href="#" data-i18n="pp.fhir">Xuất dữ liệu đoạn này dạng FHIR (Location, RiskAssessment, Observation)</a>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LEVEL = { green: [t("level.green"), "--green"], yellow: [t("level.yellow"), "--yellow-level"],
+                  orange: [t("level.orange"), "--orange"], red: [t("level.red"), "--red"],
+                  none: [t("level.none"), null] };
+  const LOCALE = window.AquaLang.code === "en" ? "en-GB" : "vi-VN";
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const fmt = (v, d = 2) => v === null || v === undefined ? "–"
+    : Number(v).toLocaleString(LOCALE, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const demo = () => window.AquaDemo.on;
+  const params = new URLSearchParams(location.search);
+  let segmentId = params.get("segment") || "nhieu-loc-thi-nghe-1";
+
+  function el(tag, props = {}, ...children) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+  async function getJson(url) {
+    const r = await fetch(url);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : t("word.servererror", { status: r.status }));
+    return body;
+  }
+
+  const map = L.map("map", { scrollWheelZoom: false });
+  fetch("/config").then((r) => r.json()).then((cfg) => {
+    L.tileLayer(cfg.map_tile_url, { maxZoom: 19, subdomains: "abc", attribution: cfg.map_attribution }).addTo(map);
+  });
+  const layer = L.layerGroup().addTo(map);
+
+  function tile(label, value, sub) {
+    return el("div", {}, el("span", { className: "label", textContent: label }),
+              el("span", { className: "value", textContent: value }), el("span", { className: "sub", textContent: sub }));
+  }
+
+  // Two-series columns (history) or one series (rain): 4px rounded tops, 2px gap, hover tooltip, one axis.
+  function columns(target, card, rows, series, labelOf) {
+    const W = Math.max(300, target.clientWidth || 560), H = 190, L0 = 30, R = 6, T = 8, B = 24;
+    const top = Math.max(1, ...rows.flatMap((r) => series.map((s) => r[s.key])));
+    const raw = top / 4, base = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    let step = [1, 2, 5, 10].map((k) => k * base).find((v) => v >= raw) || 1;
+    if (series.every((s) => !s.digits)) step = Math.max(1, Math.round(step));  // counts: whole-number ticks
+    const max = Math.max(step, Math.ceil(top / step) * step);
+    const y = (v) => T + (H - T - B) * (1 - v / max);
+    const NS = "http://www.w3.org/2000/svg";
+    const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": card.querySelector("h2").textContent });
+    for (let v = 0; v <= max + 1e-9; v += step) {
+      svg.append(svgEl("line", { x1: L0, x2: W - R, y1: y(v), y2: y(v), stroke: v ? "var(--grid)" : "var(--baseline)" }));
+      const t = svgEl("text", { x: L0 - 6, y: y(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, 0); svg.append(t);
+    }
+    const band = (W - L0 - R) / rows.length;
+    const bw = Math.min(12, Math.max(3, (band - 4) / series.length - 2));
+    const tip = el("div", { className: "tip", hidden: true });
+    rows.forEach((r, i) => {
+      const cx = L0 + band * i + band / 2;
+      series.forEach((s, k) => {
+        const x = cx - (series.length * (bw + 2)) / 2 + k * (bw + 2) + 1, h = y(0) - y(r[s.key]);
+        if (h <= 0) return;
+        const rr = Math.min(4, h, bw / 2), t0 = y(r[s.key]);
+        svg.append(svgEl("path", { fill: `var(${s.color})`,
+          d: `M${x},${y(0)} V${t0 + rr} Q${x},${t0} ${x + rr},${t0} H${x + bw - rr} Q${x + bw},${t0} ${x + bw},${t0 + rr} V${y(0)} Z` }));
+      });
+      if (i % Math.ceil(rows.length / 7) === 0 || i === rows.length - 1) {
+        const t = svgEl("text", { x: cx, y: H - 6, "text-anchor": "middle" }); t.textContent = labelOf(r); svg.append(t);
+      }
+      const hit = svgEl("rect", { x: L0 + band * i, y: T, width: band, height: H - T - B, fill: "transparent", tabindex: 0 });
+      const show = (ev) => {
+        tip.replaceChildren(el("div", { textContent: labelOf(r, true) }),
+          ...series.map((s) => el("div", {}, el("span", { className: "key", style: `background:var(${s.color})` }),
+                                  el("strong", { textContent: fmt(r[s.key], s.digits || 0) }), ` ${s.label}`)));
+        tip.hidden = false;
+        const box = card.getBoundingClientRect(), hb = hit.getBoundingClientRect();
+        tip.style.left = `${Math.min((ev.clientX ?? hb.left) - box.left + 12, box.width - 160)}px`;
+        tip.style.top = `${(ev.clientY ?? hb.top) - box.top - 60}px`;
+      };
+      hit.addEventListener("pointermove", show); hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", () => { tip.hidden = true; }); hit.addEventListener("blur", () => { tip.hidden = true; });
+      svg.append(hit);
+    });
+    target.replaceChildren(svg, tip);
+  }
+  const dayLabel = (r, long) => { const [y, m, d] = r.day.split("-"); return long ? `${d}/${m}/${y}` : `${d}/${m}`; };
+
+  async function loadPress(waterway) {
+    try {
+      const { mentions, since, note } = await getJson(`/press?waterway=${encodeURIComponent(waterway)}&limit=8`);
+      const [y, m, d] = since.split("-");
+      $("press-title").textContent = t("pp.presssince", { date: `${d}/${m}/${y}` });
+      $("press").replaceChildren(...(mentions.length ? [
+        ...mentions.map((a) => {
+          const when = new Date(a.published_at);
+          return el("div", { className: "notice", style: "border-left:6px solid #1a1a1a;padding-left:10px;margin-bottom:8px" },
+            el("a", { href: a.url, target: "_blank", rel: "noopener", textContent: a.title }),
+            el("div", { className: "muted", textContent:
+              `${when.toLocaleDateString(LOCALE)} · ${a.source || "?"}`
+              + (a.tags.length ? " · " + a.tags.join(", ") : "") }));
+        }),
+        el("p", { className: "muted", style: "margin:8px 0 0", textContent: note }),
+      ] : [el("span", { textContent: t("pp.nopress") })]));
+    } catch (e) {
+      $("press").replaceChildren(el("span", { className: "muted", textContent: e.message }));
+    }
+  }
+
+  function render(p) {
+    const seg = p.segment, ix = p.indices;
+    document.title = `AquaPulse – ${seg.name}`;
+    $("waterway").textContent = seg.waterway;
+    $("title").textContent = seg.name;
+    $("km").textContent = t("pp.km", { from: fmt(seg.from_m / 1000, 1), to: fmt(seg.to_m / 1000, 1) });
+    const [word, v] = LEVEL[p.level] || LEVEL.none;
+    $("level").replaceChildren(el("i", { style: `background:${v ? cssVar(v) : "#9a9892"}` }),
+                               `${t("seg.level")} ${word.toLowerCase()}`);
+    $("tiles").replaceChildren(
+      tile(t("word.eco"), fmt(ix.eco), t("pp.tile.eco")),
+      tile(t("word.risk"), fmt(ix.risk), t("pp.tile.risk")),
+      tile(t("word.confidence"), ix.confidence_label, t("pp.tile.confidence", { value: fmt(ix.confidence) })),
+      tile(t("word.trend"), ix.trend.trend === "insufficient_data" ? t("pp.tile.notenough")
+             : ix.trend.label.split(",")[0],
+           t("pp.tile.trend", { now: ix.anomalies_7d, before: ix.anomalies_prev_7d })),
+      tile(t("word.human"), fmt(ix.human_health), t("pp.tile.human")));
+    $("explain").replaceChildren(...p.explanation.map((t) => el("li", { textContent: t })));
+    $("actions").replaceChildren(...(p.actions.length ? p.actions : [t("pp.noaction")])
+      .map((line) => el("li", { textContent: line })));
+    $("limits").textContent = p.limits;
+
+    layer.clearLayers();
+    const latlngs = seg.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+    L.polyline(latlngs, { color: "#1a1a1a", weight: 11 }).addTo(layer);
+    L.polyline(latlngs, { color: v ? cssVar(v) : "#9a9892", weight: 6 }).addTo(layer);
+    map.fitBounds(latlngs, { padding: [20, 20] });
+    // The reports on this stretch (public positions, rounded about 110 m).
+    getJson(`/map/points?hours=${24 * 30}&include_demo=${demo()}`).then((pts) => {
+      const bounds = L.latLngBounds(latlngs).pad(0.1);
+      for (const f of pts.features) {
+        const [lon, lat] = f.geometry.coordinates;
+        if (!bounds.contains([lat, lon])) continue;
+        const q = f.properties;
+        L.circleMarker([lat, lon], { radius: 7, color: "#1a1a1a", weight: 2, fillOpacity: 1,
+          fillColor: cssVar((LEVEL[q.level] || LEVEL.green)[1]) })
+          .bindPopup(`${q.type}<br>${new Date(q.observed_at).toLocaleString(LOCALE)}<br>`
+                     + `${t("word.confidence")} ${fmt(q.confidence)} · ${q.status_label}`)
+          .addTo(layer);
+      }
+    }).catch(() => {});
+
+    columns($("hist"), $("hist-card"), p.history,
+            [{ key: "reports", label: t("word.observations"), color: "--series-1" },
+             { key: "anomalies", label: t("pp.anomalylabel"), color: "--series-2" }], dayLabel);
+    $("hist-table").replaceChildren(...p.history.map((r) => el("tr", {}, el("td", { textContent: dayLabel(r, true) }),
+      el("td", { textContent: r.reports }), el("td", { textContent: r.anomalies }))));
+    if (p.rain.days && p.rain.days.length) {
+      $("rain-source").textContent = p.rain.source;
+      columns($("rain"), $("rain-card"), p.rain.days.slice(-14), [{ key: "mm", label: "mm", color: "--series-1", digits: 1 }], dayLabel);
+    } else {
+      $("rain-source").textContent = t("pp.norain");
+      $("rain").replaceChildren();
+    }
+
+    $("anomalies").replaceChildren(...(p.anomalies.length ? p.anomalies.map((a) => el("span", { className: "chip", textContent: `${a.label} · ${a.count}` }))
+      : [el("span", { className: "muted", textContent: t("pp.nosigns") })]));
+    $("life").textContent = p.life.asked
+      ? `${t("pp.lifeseen", { seen: p.life.seen_alive, asked: p.life.asked })} ${p.life.note}`
+      : t("pp.nolife");
+    const pp = p.participation;
+    $("people").replaceChildren(
+      el("div", {}, el("b", { textContent: pp.reports_30d }), t("pp.per30d")),
+      el("div", {}, el("b", { textContent: pp.reporters }), t("pp.senders")),
+      el("div", {}, el("b", { textContent: pp.confirmed_on_site }), t("pp.confirmed")));
+    $("human").textContent = t("pp.humantext", { index: fmt(p.human_impact.index),
+                                                  n: p.human_impact.children_or_direct_contact });
+    $("alerts").replaceChildren(...(p.alerts.length ? p.alerts.map((a) => el("div", { className: "alert-card" },
+      el("b", { textContent: `${t("seg.level")} ${(LEVEL[a.level] || LEVEL.none)[0].toLowerCase()} · `
+        + t(a.status === "open" ? "status.open" : "status.verified").toLowerCase() }),
+      window.renderEvidence(a))) : [el("span", { className: "muted", textContent: t("pp.noalerts") })]));
+    $("fhir").href = `/fhir/waterways/${seg.id}?include_demo=${demo()}`;
+    loadPress(seg.waterway);
+  }
+
+  const QUESTIONS = ["children", "odor", "after_rain", "biodiversity"].map((k) => [k, t(`ask.q.${k}`)]);
+  $("ask").replaceChildren(...QUESTIONS.map(([key, text]) => {
+    const b = el("button", { type: "button", textContent: text });
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", async () => {
+      document.querySelectorAll("#ask button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      try {
+        const a = await getJson(`/translator?question=${key}&segment_id=${segmentId}&include_demo=${demo()}`);
+        const dl = el("dl");
+        const add = (term, node) => dl.append(el("dt", { textContent: term }), el("dd", {}, node));
+        add(t("ask.data"), el("ul", {}, ...a.data_used.map((line) => el("li", { textContent: line }))));
+        add(t("ask.certainty"), document.createTextNode(a.certainty));
+        add(t("ask.unknown"), el("ul", {}, ...a.unknown.map((line) => el("li", { textContent: line }))));
+        add(t("ask.advice"), document.createTextNode(a.advice));
+        $("answer").replaceChildren(el("p", { style: "margin:0;font-weight:600", textContent: a.answer }), dl,
+                                    el("p", { className: "muted", textContent: a.disclaimer }));
+      } catch (e) { $("answer").replaceChildren(el("p", { className: "muted", textContent: e.message })); }
+    });
+    return b;
+  }));
+
+  async function load() {
+    $("error").hidden = true;
+    try {
+      const [p, all] = await Promise.all([getJson(`/waterways/${segmentId}/passport?include_demo=${demo()}`),
+                                          getJson(`/waterways?include_demo=${demo()}`)]);
+      $("pick").replaceChildren(...all.segments.map((s) => new Option(s.name, s.id)));
+      $("pick").value = segmentId;
+      render(p);
+    } catch (e) { $("error").textContent = e.message; $("error").hidden = false; }
+  }
+  $("pick").addEventListener("change", () => {
+    segmentId = $("pick").value;
+    history.replaceState(null, "", `?segment=${segmentId}`);
+    $("answer").replaceChildren();
+    load();
+  });
+  load();
+})();
+</script>
+</body>
+</html>

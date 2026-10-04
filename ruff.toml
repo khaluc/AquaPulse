@@ -1,0 +1,10 @@
+line-length = 110
+exclude = [".venv", "data"]
+
+[lint]
+extend-select = ["I", "B", "UP", "RUF", "SIM"]
+
+[lint.per-file-ignores]
+# FastAPI declares request parsing in argument defaults on purpose.
+"backend/app/main.py" = ["B008"]
+"**/tests/*" = ["RUF012"]

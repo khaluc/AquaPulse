@@ -1,0 +1,188 @@
+/* AquaPulse brutalist theme: thick black rules, square corners, condensed uppercase headings,
+   lemon yellow for action, red only for small section labels. Loaded after each page's own
+   styles, so it re-maps their tokens and restyles the shared pieces. Light only, on purpose. */
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #ffffff;
+  --paper-2: #fafafa;
+  --brand-yellow: #F9FF00;
+  --brand-red: #FF0004;
+  --rule: 3px solid #1a1a1a;
+
+  /* Tokens the pages already use. */
+  --ground: #ffffff;
+  --surface: #ffffff;
+  --sunken: #f3f3f0;
+  --muted: #5c5b57;
+  --line: #1a1a1a;
+  --accent: #1a1a1a;
+  --accent-ink: #1a1a1a;
+  --stage: #1a1a1a;
+  color-scheme: light;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+h1, h2, h3, .eyebrow, .brutal-display, nav.top a, .btn, button, .kpi .value, .figure .value,
+.tile b, th, .pill, .badge, .stat b {
+  font-family: "Oswald", "Inter", sans-serif;
+}
+/* Vietnamese stacks marks above capitals (Ấ, Ờ) and below (Ọ): 0.95 as in English headlines
+   makes them touch the next line, so give headings a little more room. */
+h1 { text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.12; font-weight: 700; }
+h2, h3 { text-transform: uppercase; letter-spacing: -0.01em; font-weight: 700; }
+
+/* Section label: small, spaced, red. */
+.eyebrow { color: var(--brand-red); letter-spacing: 0.2em; font-weight: 700; text-transform: uppercase; }
+
+/* The site bar: same markup, same place, same size on every page, so moving between pages
+   does not shift it. scrollbar-gutter keeps the width the same whether a page scrolls or not. */
+html { scrollbar-gutter: stable; }
+/* Pages also style plain <header> (gap, alignment, padding); pin every property here so the bar
+   comes out the same on all of them. */
+.site-bar {
+  position: sticky; top: 0; z-index: 1000; display: flex !important; flex-wrap: nowrap;
+  align-items: stretch !important; justify-content: flex-start !important; gap: 0 !important;
+  height: 60px; margin: 0 !important; padding: 0 !important;
+  background: var(--paper); border-bottom: var(--rule);
+}
+.site-brand {
+  display: flex; align-items: center; padding: 0 24px; width: 290px; flex: none;
+  font: 700 20px "Oswald", sans-serif; text-transform: uppercase; letter-spacing: -0.02em;
+  color: var(--ink); text-decoration: none; white-space: nowrap; border-right: var(--rule);
+}
+.site-bar nav { display: flex; flex: 1; }
+.site-bar nav a {
+  flex: 1 1 0; display: flex; align-items: center; justify-content: center; padding: 0 12px;
+  border-right: var(--rule); font: 600 14px "Oswald", sans-serif; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--ink); text-decoration: none; text-align: center; white-space: nowrap;
+}
+.site-bar nav a:last-child { border-right: 0; }
+.site-bar nav a:hover { background: var(--brand-yellow); }
+.site-bar nav a[aria-current] { background: var(--ink); color: var(--paper); }
+/* VI | EN, at the end of the bar (i18n.js adds it to every page). */
+.lang-switch { display: flex; flex: none; border-left: var(--rule); }
+.lang-switch button {
+  width: 46px; border: 0; border-right: var(--rule); background: var(--paper); cursor: pointer;
+  font: 600 13px "Oswald", sans-serif; letter-spacing: .06em; color: var(--ink);
+}
+.lang-switch button:last-child { border-right: 0; }
+.lang-switch button:hover { background: var(--brand-yellow); }
+.lang-switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (max-width: 860px) {
+  .site-bar { height: auto; flex-wrap: wrap; }
+  .site-brand { width: calc(100% - 92px); height: 48px; border-right: var(--rule); border-bottom: var(--rule);
+                padding: 0 16px; font-size: 17px; }
+  /* Brand and the language switch share the first row; the nav gets the second. */
+  .site-bar nav { order: 2; flex-basis: 100%; }
+  .site-bar nav a { height: 44px; padding: 0 4px; font-size: 12px; white-space: normal; line-height: 1.15; }
+  .lang-switch { order: 1; border-left: 0; border-bottom: var(--rule); }
+  .lang-switch button { width: 46px; height: 48px; }
+}
+
+/* Page title block under the bar. */
+.wrap > header { border-bottom: var(--rule); padding-bottom: 12px; }
+
+/* Boxes: square, 3px rule, no shadow. */
+.panel, .tile, .kpi, .figure, .card, .chart-card, .table-wrap, section.box, .answers, .result-card,
+.stat, .verdict, .quality, .vision, .water-note, .error, .note, .model-chip, #map, .stage, .item,
+.spot, .level-pill, input, select, textarea {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.panel, .tile, .kpi, .figure, .card, .chart-card, .table-wrap, .answers, .result-card {
+  border: var(--rule) !important;
+}
+#map, .stage { border: var(--rule) !important; }
+
+/* Buttons. */
+button, .btn {
+  border-radius: 0 !important;
+  border: var(--rule) !important;
+  background: var(--paper);
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  transition: background .15s ease, color .15s ease;
+}
+button:hover, .btn:hover { background: var(--brand-yellow); }
+.btn-primary, button.btn-primary {
+  background: var(--brand-yellow) !important; color: var(--ink) !important; border-color: var(--ink) !important;
+}
+.btn-primary:hover { background: var(--paper) !important; }
+.btn-black { background: var(--ink) !important; color: var(--paper) !important; }
+.btn-black:hover { background: var(--paper) !important; color: var(--ink) !important; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+button:focus-visible, .btn:focus-visible, .btn:focus-within, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--brand-red) !important; outline-offset: 2px;
+}
+
+input, select, textarea { border: 2px solid var(--ink) !important; background: var(--paper) !important; }
+
+/* Tags and pills: yellow block with a black rule. */
+.pill, .badge {
+  border-radius: 0 !important; border: 2px solid var(--ink); background: var(--paper);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.badge.earned { background: var(--brand-yellow); }
+.tag {
+  display: inline-block; background: var(--brand-yellow); border: var(--rule); padding: 2px 10px;
+  font: 700 12px/1.4 "Oswald", sans-serif; text-transform: uppercase; letter-spacing: 0.16em;
+}
+.tag.red { background: var(--brand-red); color: #fff; }
+
+/* Tables: ruled, uppercase heads. */
+table th { color: var(--ink); letter-spacing: 0.12em; }
+th, td { border-bottom: 2px solid var(--ink) !important; }
+
+/* Numbers in stat boxes. */
+.kpi .value, .figure .value, .tile b { font-weight: 700; letter-spacing: -0.02em; }
+.kpi .label, .figure .label { text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; color: var(--ink); }
+
+/* Dark footer with yellow headings. */
+.site-footer {
+  background: var(--ink); color: #fff; border-top: var(--rule); margin: 32px -16px -40px;
+  padding: 40px 16px 24px;
+}
+.site-footer .inner { max-width: 1240px; margin: 0 auto; display: grid; gap: 24px;
+  grid-template-columns: 2fr repeat(3, 1fr); }
+@media (max-width: 800px) { .site-footer .inner { grid-template-columns: 1fr 1fr; } }
+.site-footer h3 { margin: 0 0 10px; font-size: 22px; }
+.site-footer h4 { margin: 0 0 10px; font: 700 12px "Oswald", sans-serif; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--brand-yellow); }
+.site-footer p, .site-footer a, .site-footer span { color: rgba(255,255,255,.72); font-size: 13.5px; }
+.site-footer a { display: block; text-decoration: none; margin: 3px 0; }
+.site-footer a:hover { color: var(--brand-yellow); }
+.site-footer .legal { max-width: 1240px; margin: 24px auto 0; padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.2); font-size: 11px; color: rgba(255,255,255,.45);
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; text-transform: uppercase; }
+
+/* Leaflet controls in the same language. */
+.leaflet-bar, .leaflet-bar a { border-radius: 0 !important; }
+.leaflet-bar { border: var(--rule) !important; }
+.leaflet-popup-content-wrapper { border-radius: 0 !important; border: var(--rule); box-shadow: none !important; }
+.leaflet-popup-tip { box-shadow: none !important; }
+
+
+/* Sample-data banner (demo-mode.js). */
+.demo-banner {
+  position: sticky; top: 60px; z-index: 999; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+  justify-content: space-between; background: var(--brand-yellow); border-bottom: var(--rule);
+  padding: 8px 24px; font: 600 13px/1.4 "Oswald", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+}
+.demo-banner a { color: var(--ink); }
+@media (max-width: 860px) { .demo-banner { top: 0; position: static; padding: 8px 16px; } }
+
+/* Evidence-structured alert (five parts). */
+.evidence { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0; font-size: 13.5px; }
+.evidence dt { font: 700 11px/1.9 "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.evidence dd { margin: 0; }
+.evidence dd.do { font-weight: 700; }
+@media (max-width: 600px) { .evidence { grid-template-columns: 1fr; } .evidence dt { margin-top: 6px; } }

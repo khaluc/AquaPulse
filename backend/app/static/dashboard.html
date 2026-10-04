@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="i18n-title" content="db.title">
+<title>AquaPulse – Bảng điều khiển</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root {
+    --ground: #F1F5F4; --surface: #FFFFFF; --sunken: #E7EDEB; --ink: #13201E; --muted: #5A6B67;
+    --line: #D4DEDB; --accent: #0E7C86;
+    --green: #0ca30c; --yellow: #fab219; --orange: #ec835a; --red: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0C1514; --surface: #13201E; --sunken: #0F1A19; --ink: #E3ECEA; --muted: #93A6A2;
+      --line: #25403C; --accent: #4FC1C8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0C1514; --surface: #13201E; --sunken: #0F1A19; --ink: #E3ECEA; --muted: #93A6A2;
+    --line: #25403C; --accent: #4FC1C8;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  /* Grid children may shrink below their content (map attribution, long lines) on phones. */
+  .wrap > *, .layout > *, .hero > *, .charts > * { min-width: 0; }
+  body { margin: 0; background: var(--ground); color: var(--ink);
+         font: 15px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 16px; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 8px 16px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { margin: 2px 0 0; font-size: clamp(22px, 3.2vw, 30px); line-height: 1.2; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; color: var(--muted); }
+  .controls select, .controls a { font: inherit; color: var(--ink); }
+  .controls select { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+          display: grid; gap: 2px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+  .tile[aria-pressed="false"] { opacity: .5; }
+  .tile b { font-size: 22px; }
+  .tile small { color: var(--muted); font-size: 12.5px; }
+  .tile .swatch { width: 28px; height: 4px; border-radius: 2px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  #map { height: 560px; border-radius: 10px; border: 1px solid var(--line); background: var(--sunken); }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+  .panel h2 { margin: 0; font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .spot { border-left: 3px solid var(--accent); padding-left: 8px; font-size: 13px; }
+  .spot b { display: block; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  td.num { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; background: var(--sunken); }
+  .error { background: #FBE9E1; color: #B4461F; border-radius: 8px; padding: 10px 12px; }
+  footer { font-size: 12.5px; color: var(--muted); max-width: 80ch; }
+  .leaflet-popup-content { font: 13px/1.45 "Inter", system-ui, sans-serif; }
+
+  /* Charts: role tokens, light and dark stepped separately (validated: 2 slots pass both modes). */
+  .viz-root {
+    --chart-surface: #fcfcfb; --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --series-1: #2a78d6; --series-2: #eb6834; --good-text: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      --chart-surface: #1a1a19; --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --series-1: #3987e5; --series-2: #d95926; --good-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    --chart-surface: #1a1a19; --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --series-1: #3987e5; --series-2: #d95926; --good-text: #0ca30c;
+  }
+  .metrics { display: grid; gap: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+  .kpi .label { font-size: 12.5px; color: var(--muted); }
+  .kpi .value { font-size: 24px; font-weight: 600; }
+  .kpi .sub { font-size: 12px; color: var(--muted); }
+  .charts { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--chart-surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+                display: grid; gap: 8px; align-content: start; position: relative; color: var(--text-primary); }
+  .chart-card h2 { margin: 0; font-size: 15px; }
+  .chart-card .sub { font-size: 12.5px; color: var(--text-secondary); }
+  .chart-card svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart-card svg text { fill: var(--text-muted); font-size: 11px; font-family: system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .chart-legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .chart-legend i.dot { border-radius: 50%; }
+  .tip { position: absolute; pointer-events: none; background: var(--chart-surface); color: var(--text-primary);
+         border: 1px solid var(--grid); border-radius: 8px; padding: 6px 9px; font-size: 12.5px;
+         box-shadow: 0 4px 14px rgba(0,0,0,.12); display: grid; gap: 2px; white-space: nowrap; z-index: 5; }
+  .tip .key { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
+  .chart-card details { font-size: 12.5px; color: var(--text-secondary); }
+  .chart-card details table { font-size: 12.5px; }
+  .level-pill { display: inline-flex; align-items: center; gap: 5px; }
+  .level-pill i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/demo-mode.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/evidence.js" defer></script>
+</head>
+<body>
+<header class="site-bar">
+  <a class="site-brand" href="/">AquaPulse</a>
+  <nav data-i18n-aria="nav.pages" aria-label="Trang">
+    <a href="/" data-i18n="nav.home">Trang chủ</a>
+    <a href="/report" data-i18n="nav.report">Gửi quan sát</a>
+    <a href="/tasks-board" data-i18n="nav.tasks">Nhiệm vụ cộng đồng</a>
+    <a href="/dashboard" aria-current="page" data-i18n="nav.dashboard">Bảng điều khiển</a>
+  </nav>
+</header>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">AquaPulse · <span data-i18n="db.eyebrow">Bảng điều khiển chuyên gia</span></div>
+      <h1 data-i18n="db.h1">Sức khỏe sông, kênh và chỉ thị rủi ro môi trường</h1>
+    </div>
+    <div class="controls">
+      <label><span data-i18n="db.window">Khoảng thời gian</span>
+        <select id="hours">
+          <option value="72" data-i18n="db.w72">72 giờ</option>
+          <option value="168" data-i18n="db.w7d">7 ngày</option>
+          <option value="336" selected data-i18n="db.w14d">14 ngày</option>
+          <option value="720" data-i18n="db.w30d">30 ngày</option>
+        </select></label>
+    </div>
+  </header>
+
+  <div id="error" class="error" hidden></div>
+
+  <section class="metrics viz-root" data-i18n-aria="pp.indices" aria-label="Chỉ số">
+    <div class="kpis" id="kpis"></div>
+    <div class="charts">
+      <div class="chart-card" id="daily-card">
+        <h2 data-i18n="db.daily">Báo cáo mỗi ngày</h2>
+        <div class="chart-legend"><span><i style="background:var(--series-1)"></i>
+          <b data-i18n="db.allreports">Tất cả báo cáo</b></span>
+          <span><i style="background:var(--series-2)"></i><b data-i18n="db.verified">Đã xác minh</b></span></div>
+        <div id="daily-chart"></div>
+        <details><summary data-i18n="pp.astable">Xem dạng bảng</summary><table><thead><tr>
+          <th data-i18n="pp.day">Ngày</th><th data-i18n="db.reports">Báo cáo</th>
+          <th data-i18n="db.verified">Đã xác minh</th></tr></thead>
+          <tbody id="daily-table"></tbody></table></details>
+      </div>
+      <div class="chart-card" id="ba-card">
+        <h2 data-i18n="db.beforeafter">Trước và sau xử lý</h2>
+        <div class="sub" data-i18n="db.basub">Điểm nhóm của từng điểm đã có ảnh sau xử lý (0 = không có dấu hiệu, 1 = cao).</div>
+        <div class="chart-legend"><span><i class="dot" style="background:var(--series-1)"></i>
+          <b data-i18n="db.before">Trước</b></span>
+          <span><i class="dot" style="background:var(--series-2)"></i><b data-i18n="db.after">Sau</b></span></div>
+        <div id="ba-chart"></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th data-i18n="db.area">Khu vực cần chú ý</th><th data-i18n="tk.f.kind">Loại</th>
+        <th data-i18n="seg.level">Mức</th><th data-i18n="db.reports">Báo cáo</th>
+        <th data-i18n="db.reporters">Người báo</th><th data-i18n="db.maxrisk">Rủi ro cao nhất</th></tr></thead>
+        <tbody id="top-areas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="layout">
+    <div id="map" role="region" data-i18n-aria="db.maplabel" aria-label="Bản đồ rủi ro"></div>
+    <aside class="panel">
+      <h2 data-i18n="db.hotspots">Điểm nóng (72 giờ gần nhất)</h2>
+      <div id="hotspots" class="muted" data-i18n="word.loading">Đang tải…</div>
+      <h2 data-i18n="db.legend">Chú giải</h2>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i><b data-i18n="db.l1">dưới 0,30</b></span>
+        <span><i style="background:var(--yellow)"></i><b data-i18n="db.l2">0,30–0,49</b></span>
+        <span><i style="background:var(--orange)"></i><b data-i18n="db.l3">0,50–0,74</b></span>
+        <span><i style="background:var(--red)"></i><b data-i18n="db.l4">từ 0,75</b></span>
+      </div>
+      <p class="muted" data-i18n="db.legendnote">Viền đậm: đã xác minh. Viền nét đứt: đã xử lý, màu theo điểm
+        sau xử lý. Vùng tô: điểm nóng (từ 3 báo cáo của ít nhất 2 người, trong 500 m).</p>
+    </aside>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th data-i18n="db.place">Khu vực</th><th data-i18n="db.group">Nhóm</th>
+        <th data-i18n="db.signals">Tín hiệu</th><th data-i18n="word.risk">Rủi ro</th>
+        <th data-i18n="word.confidence">Tin cậy</th><th data-i18n="db.status">Trạng thái</th></tr></thead>
+      <tbody id="table"></tbody>
+    </table>
+  </div>
+
+  <footer data-i18n="db.footer">Điểm là chỉ số môi trường của từng nhóm, không phải chẩn đoán bệnh hay xét
+    nghiệm. Hệ thống không xác định loài muỗi, vi khuẩn hay độc tố từ ảnh; các trường hợp đó do người xác minh và
+    phòng thí nghiệm quyết định. Toạ độ được làm tròn khoảng 11 m.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LAYER_COLOR = { mosquito_breeding: "#0E7C86", fly_organic: "#8A5A00", water_anomaly: "#3F6FD8", verified: "#2E9E5B" };
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const scoreColor = (s) => cssVar(s >= 0.75 ? "--red" : s >= 0.5 ? "--orange" : s >= 0.3 ? "--yellow" : "--green");
+
+  const map = L.map("map").setView([10.78, 106.69], 12);
+  // Tiles come from /config (MAP_TILE_URL). Default: Humanitarian OSM style hosted by
+  // OpenStreetMap France, no API key; tile.openstreetmap.org is unreachable from the
+  // team's network and CARTO now needs a key.
+  fetch("/config").then((r) => r.json()).then((cfg) => {
+    L.tileLayer(cfg.map_tile_url, { maxZoom: 19, subdomains: "abc", attribution: cfg.map_attribution }).addTo(map);
+  });
+  const groups = {};
+  const hotspotLayer = L.layerGroup().addTo(map);
+  const visible = { mosquito_breeding: true, fly_organic: true, water_anomaly: true, verified: false };
+
+  function text(tag, content, className) {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    el.textContent = content;
+    return el;
+  }
+
+  function popup(p) {
+    const box = document.createElement("div");
+    box.append(text("b", p.group_label));
+    const score = p.score_after !== null
+      ? t("db.scoreafter", { before: (p.score ?? 0).toFixed(2), after: p.score_after.toFixed(2) })
+      : t("db.score", { value: p.score === null ? "–" : p.score.toFixed(2) });
+    box.append(text("div", `${score} · ${t("word.confidence").toLowerCase()} `
+                           + `${(p.confidence ?? 0).toFixed(2)} · ${p.status_label}`));
+    if (p.signals.length) box.append(text("div", `${t("db.signals")}: ${p.signals.join(", ")}`));
+    if (p.statement) box.append(text("div", p.statement));
+    box.append(text("div", new Date(p.observed_at).toLocaleString(LOCALE)
+                           + (p.is_demo ? " · demo" : ""), "muted"));
+    return box;
+  }
+
+  function renderLayers(data) {
+    Object.values(groups).forEach((g) => g.remove());
+    for (const [name, layer] of Object.entries(data.layers)) {
+      const group = L.layerGroup();
+      for (const f of layer.geojson.features) {
+        const p = f.properties;
+        const [lon, lat] = f.geometry.coordinates;
+        L.circleMarker([lat, lon], {
+          radius: 8,
+          color: p.status === "verified" ? "#111" : LAYER_COLOR[name],
+          weight: p.status === "verified" ? 3 : 2,
+          dashArray: p.treated ? "3 3" : null,
+          fillColor: scoreColor(p.current_score ?? 0),
+          fillOpacity: 0.85,
+        }).bindPopup(popup(p)).addTo(group);
+      }
+      groups[name] = group;
+      if (visible[name]) group.addTo(map);
+    }
+  }
+
+  function renderTiles(data) {
+    $("tiles").replaceChildren(...Object.entries(data.layers).map(([name, layer]) => {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "tile";
+      tile.setAttribute("aria-pressed", String(visible[name]));
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = LAYER_COLOR[name];
+      tile.append(swatch, text("b", layer.count, "mono"), text("small", layer.label));
+      tile.addEventListener("click", () => {
+        visible[name] = !visible[name];
+        tile.setAttribute("aria-pressed", String(visible[name]));
+        visible[name] ? groups[name].addTo(map) : groups[name].remove();
+      });
+      return tile;
+    }));
+  }
+
+  function renderHotspots(data) {
+    hotspotLayer.clearLayers();
+    const list = [];
+    for (const [layer, spots] of Object.entries(data.hotspots)) {
+      for (const h of spots) {
+        if (h.hull) {
+          L.geoJSON(h.hull, { style: { color: LAYER_COLOR[layer], weight: 2, fillOpacity: 0.12 } }).addTo(hotspotLayer);
+        }
+        L.circle([h.latitude, h.longitude], { radius: Math.max(h.spread_m, 60), color: LAYER_COLOR[layer],
+          weight: 1, fillOpacity: 0.05 }).addTo(hotspotLayer);
+        const item = document.createElement("div");
+        item.className = "spot";
+        item.style.borderColor = LAYER_COLOR[layer];
+        item.append(text("b", `${data.layers[layer].label}: `
+                              + t("db.spotcount", { n: h.reports, people: h.reporters })),
+                    text("span", t("db.spotrisk", { risk: h.max_risk.toFixed(2),
+                                                    m: Math.round(h.spread_m) }), "muted"));
+        item.addEventListener("click", () => map.setView([h.latitude, h.longitude], 16));
+        list.push(item);
+      }
+    }
+    $("hotspots").replaceChildren(...(list.length ? list : [text("span", t("db.nospots"), "muted")]));
+  }
+
+  function renderTable(data) {
+    $("table").replaceChildren(...data.table.map((r) => {
+      const row = document.createElement("tr");
+      const score = r.score_before !== null
+        ? `${(r.score_before ?? 0).toFixed(2)} → ${(r.score ?? 0).toFixed(2)}`
+        : r.score === null ? "–" : r.score.toFixed(2);
+      const cells = [text("td", r.area, "num"), text("td", r.group), text("td", r.signals),
+                     text("td", score, "num"), text("td", (r.confidence ?? 0).toFixed(2), "num")];
+      const status = document.createElement("td");
+      const pill = text("span", r.status, "pill");
+      status.append(pill);
+      row.append(...cells, status);
+      return row;
+    }));
+  }
+
+  // --- Metrics (section 21) ----------------------------------------------------------
+  const SVG = "http://www.w3.org/2000/svg";
+  const LEVEL_TEXT = { green: t("level.green"), yellow: t("level.yellow"), orange: t("level.orange"),
+                       red: t("level.red") };
+  const CATEGORY_TEXT = { vector: t("cat.vector"), sanitation: t("cat.sanitation"),
+                          water_quality: t("cat.water_quality") };
+  const LOCALE = window.AquaLang.code === "en" ? "en-GB" : "vi-VN";
+  const fmt = (v, digits = 0) => v === null || v === undefined ? "–"
+    : Number(v).toLocaleString(LOCALE, { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  const pct = (v) => v === null || v === undefined ? "–" : `${fmt(v * 100, 0)}%`;
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  function kpi(label, value, sub) {
+    const box = document.createElement("div");
+    box.className = "kpi";
+    box.append(text("span", label, "label"), text("span", value, "value"));
+    if (sub) box.append(text("span", sub, "sub"));
+    return box;
+  }
+
+  function renderKpis(m) {
+    const reduction = m.risk_reduction_pct === null ? "–" : `${fmt(m.risk_reduction_pct, 0)}%`;
+    $("kpis").replaceChildren(
+      kpi(t("db.reports"), fmt(m.total_observations),
+          t("db.kpi.today", { today: fmt(m.observations_today), days: m.days })),
+      kpi(t("db.verified"), fmt(m.verified_observations),
+          t("db.kpi.rate", { pct: pct(m.verification_rate) })),
+      kpi(t("home.stat.alerts"), fmt(m.open_alerts),
+          t("db.kpi.high", { n: fmt(m.open_high_alerts) })),
+      kpi(t("db.kpi.response"), m.average_response_hours === null ? "–"
+            : t("db.kpi.hours", { n: fmt(m.average_response_hours, 1) }), t("db.kpi.responsesub")),
+      kpi(t("db.kpi.resolved"), fmt(m.resolved_hotspots),
+          t("db.kpi.resolverate", { pct: pct(m.resolution_rate) })),
+      kpi(t("db.kpi.reduction"), reduction,
+          m.risk_before === null ? t("db.kpi.noafter")
+            : t("db.kpi.fromto", { before: fmt(m.risk_before, 2), after: fmt(m.risk_after, 2),
+                                   n: m.treated_sites })),
+      kpi(t("db.kpi.afterrain"), fmt(m.reports_after_rainfall),
+          t("db.kpi.meanconf", { value: fmt(m.average_confidence, 2) })),
+    );
+  }
+
+  // Whole-number ticks (1, 2 or 5 x 10^k), at most 5 steps: counts never show as 2,5.
+  function niceScale(v) {
+    const raw = Math.max(1, v / 5);
+    const base = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 5, 10].map((k) => k * base).find((s) => s >= raw);
+    return { step, max: Math.max(step, Math.ceil(v / step) * step) };
+  }
+
+  function placeTip(card, tip, x, y) {
+    const box = card.getBoundingClientRect();
+    tip.style.left = `${Math.min(Math.max(x - box.left + 12, 4), box.width - tip.offsetWidth - 4)}px`;
+    tip.style.top = `${Math.max(y - box.top - tip.offsetHeight - 10, 4)}px`;
+  }
+
+  function tipRow(color, value, label) {
+    const row = document.createElement("div");
+    const key = document.createElement("span");
+    key.className = "key";
+    key.style.background = color;
+    row.append(key, text("strong", value), document.createTextNode(` ${label}`));
+    return row;
+  }
+
+  function renderDaily(days) {
+    const card = $("daily-card");
+    const W = Math.max(300, $("daily-chart").clientWidth || 640), H = 220, L = 34, R = 8, T = 10, B = 26;
+    const { step, max } = niceScale(Math.max(1, ...days.map((d) => d.reports)));
+    const band = (W - L - R) / days.length;
+    const barW = Math.min(12, Math.max(3, (band - 6) / 2));
+    const y = (v) => T + (H - T - B) * (1 - v / max);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
+      "aria-label": `Báo cáo mỗi ngày trong ${days.length} ngày; chi tiết trong bảng bên dưới` });
+    for (let v = 0; v <= max; v += step) {
+      svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v ? "var(--grid)" : "var(--baseline)", "stroke-width": 1 }));
+      const label = svgEl("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" });
+      label.textContent = fmt(v);
+      svg.append(label);
+    }
+    // Columns: 4px rounded top, square at the baseline, 2px surface gap between the pair.
+    const column = (x, v, color) => {
+      const h = y(0) - y(v);
+      if (h <= 0) return null;
+      const r = Math.min(4, h, barW / 2);
+      const top = y(v);
+      const d = `M${x},${y(0)} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${y(0)} Z`;
+      return svgEl("path", { d, fill: color });
+    };
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.hidden = true;
+    const every = Math.ceil(days.length / 7);
+    days.forEach((d, i) => {
+      const cx = L + band * i + band / 2;
+      const a = column(cx - barW - 1, d.reports, "var(--series-1)");
+      const b = column(cx + 1, d.verified, "var(--series-2)");
+      if (a) svg.append(a);
+      if (b) svg.append(b);
+      const last = days.length - 1;
+      // Every n-th day plus the last one, skipping a regular tick that would touch the last label.
+      if ((i % every === 0 && last - i >= Math.max(every, 2)) || i === last) {
+        const label = svgEl("text", { x: cx, y: H - 8, "text-anchor": "middle" });
+        label.textContent = d.day.slice(8, 10) + "/" + d.day.slice(5, 7);
+        svg.append(label);
+      }
+      const hit = svgEl("rect", { x: L + band * i, y: T, width: band, height: H - T - B, fill: "transparent", tabindex: 0 });
+      const show = (ev) => {
+        const [yy, mm, dd] = d.day.split("-");
+        tip.replaceChildren(text("div", `${dd}/${mm}/${yy}`),
+          tipRow("var(--series-1)", fmt(d.reports), t("db.reports").toLowerCase()),
+          tipRow("var(--series-2)", fmt(d.verified), t("db.verified").toLowerCase()));
+        tip.hidden = false;
+        const box = hit.getBoundingClientRect();
+        placeTip(card, tip, ev.clientX ?? box.left + box.width / 2, ev.clientY ?? box.top + 20);
+      };
+      hit.addEventListener("pointermove", show);
+      hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", () => { tip.hidden = true; });
+      hit.addEventListener("blur", () => { tip.hidden = true; });
+      svg.append(hit);
+    });
+    $("daily-chart").replaceChildren(svg, tip);
+    $("daily-table").replaceChildren(...days.map((d) => {
+      const row = document.createElement("tr");
+      row.append(text("td", d.day, "num"), text("td", fmt(d.reports), "num"), text("td", fmt(d.verified), "num"));
+      return row;
+    }));
+  }
+
+  function renderBeforeAfter(sites) {
+    const card = $("ba-card");
+    if (!sites.length) {
+      $("ba-chart").replaceChildren(text("p", t("db.noafter"), "muted"));
+      return;
+    }
+    const W = Math.max(300, $("ba-chart").clientWidth || 420), rowH = 30, L = 118, R = 16, T = 6, B = 22;
+    const H = T + rowH * sites.length + B;
+    const x = (v) => L + (W - L - R) * v;
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": t("db.beforeafter") });
+    for (const v of [0, 0.25, 0.5, 0.75, 1]) {
+      svg.append(svgEl("line", { x1: x(v), x2: x(v), y1: T, y2: H - B, stroke: "var(--grid)", "stroke-width": 1 }));
+      const label = svgEl("text", { x: x(v), y: H - 6, "text-anchor": "middle" });
+      label.textContent = fmt(v, 2);
+      svg.append(label);
+    }
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.hidden = true;
+    sites.forEach((s, i) => {
+      const cy = T + rowH * i + rowH / 2;
+      const name = svgEl("text", { x: L - 8, y: cy + 4, "text-anchor": "end" });
+      name.textContent = `${s.latitude.toFixed(3)}, ${s.longitude.toFixed(3)}`;
+      svg.append(name);
+      svg.append(svgEl("line", { x1: x(s.before), x2: x(s.after), y1: cy, y2: cy, stroke: "var(--baseline)", "stroke-width": 2, "stroke-linecap": "round" }));
+      svg.append(svgEl("circle", { cx: x(s.before), cy, r: 5, fill: "var(--series-1)", stroke: "var(--chart-surface)", "stroke-width": 2 }));
+      svg.append(svgEl("circle", { cx: x(s.after), cy, r: 5, fill: "var(--series-2)", stroke: "var(--chart-surface)", "stroke-width": 2 }));
+      const hit = svgEl("rect", { x: 0, y: cy - rowH / 2, width: W, height: rowH, fill: "transparent", tabindex: 0 });
+      const show = (ev) => {
+        tip.replaceChildren(text("div", s.group_label),
+          tipRow("var(--series-1)", fmt(s.before, 2), t("db.before").toLowerCase()),
+          tipRow("var(--series-2)", fmt(s.after, 2), t("db.after").toLowerCase()));
+        tip.hidden = false;
+        const box = hit.getBoundingClientRect();
+        placeTip(card, tip, ev.clientX ?? box.left + 120, ev.clientY ?? box.top + 10);
+      };
+      hit.addEventListener("pointermove", show);
+      hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", () => { tip.hidden = true; });
+      hit.addEventListener("blur", () => { tip.hidden = true; });
+      svg.append(hit);
+    });
+    $("ba-chart").replaceChildren(svg, tip);
+  }
+
+  function levelPill(level) {
+    const pill = document.createElement("span");
+    pill.className = "level-pill";
+    const dot = document.createElement("i");
+    dot.style.background = cssVar(`--${level}`);
+    pill.append(dot, document.createTextNode(LEVEL_TEXT[level] || level));
+    return pill;
+  }
+
+  function renderTopAreas(rows) {
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      const cell = text("td", t("pp.noalerts"), "muted");
+      cell.colSpan = 6;
+      row.append(cell);
+      $("top-areas").replaceChildren(row);
+      return;
+    }
+    $("top-areas").replaceChildren(...rows.map((a) => {
+      const row = document.createElement("tr");
+      const level = document.createElement("td");
+      level.append(levelPill(a.level));
+      row.append(text("td", `${a.latitude.toFixed(3)}, ${a.longitude.toFixed(3)}`, "num"),
+                 text("td", CATEGORY_TEXT[a.category] || a.category), level,
+                 text("td", fmt(a.reports), "num"), text("td", fmt(a.reporters), "num"),
+                 text("td", fmt(a.max_risk, 2), "num"));
+      row.addEventListener("click", () => map.setView([a.latitude, a.longitude], 16));
+      return row;
+    }));
+  }
+
+  async function loadMetrics(groupLabels) {
+    const days = Math.max(1, Math.round(Number($("hours").value) / 24));
+    const response = await fetch(`/dashboard/metrics?days=${days}&include_demo=${window.AquaDemo.on}`);
+    const m = await response.json();
+    if (!response.ok) throw new Error(m.detail || `Lỗi máy chủ (${response.status})`);
+    renderKpis(m);
+    renderDaily(m.daily);
+    renderBeforeAfter(m.treated.map((row) => ({ ...row,
+      group_label: groupLabels[row.vector_group] || t("db.defaultgroup") })));
+    renderTopAreas(m.top_areas);
+  }
+
+  async function load() {
+    $("error").hidden = true;
+    try {
+      const url = `/dashboard/data?hours=${$("hours").value}&include_demo=${window.AquaDemo.on}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || `Lỗi máy chủ (${response.status})`);
+      renderLayers(data);
+      renderTiles(data);
+      renderHotspots(data);
+      renderTable(data);
+      const labels = {};
+      Object.values(data.layers).forEach((l) => l.geojson.features.forEach((f) => {
+        if (f.properties.group) labels[f.properties.group] = f.properties.group_label;
+      }));
+      await loadMetrics(labels);
+      const points = Object.values(data.layers).flatMap((l) => l.geojson.features)
+        .map((f) => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+      if (points.length) map.fitBounds(points, { padding: [30, 30], maxZoom: 15 });
+    } catch (error) {
+      $("error").textContent = error.message;
+      $("error").hidden = false;
+    }
+  }
+
+  $("hours").addEventListener("change", load);
+  let resizeTimer;
+  window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(load, 250); });
+  load();
+})();
+</script>
+</body>
+</html>
